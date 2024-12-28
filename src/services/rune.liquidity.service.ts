@@ -1,6 +1,18 @@
 import { RPCClient } from '../utils/rpc.client';
-import { LiquidityPool, LiquidityProvider } from '../types/liquidity.types';
+import { LiquidityPool } from '../types/liquidity.types';
 import { Logger } from '../utils/logger';
+
+interface RPCLiquidityPool {
+  id: string;
+  rune: string;
+  totalLiquidity: string;
+  providers: Array<{
+    address: string;
+    amount: string;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export class RuneLiquidityService extends Logger {
   constructor(private readonly rpcClient: RPCClient) {
@@ -9,19 +21,17 @@ export class RuneLiquidityService extends Logger {
 
   async getPool(poolId: string): Promise<LiquidityPool | null> {
     try {
-      const response = await this.rpcClient.call('getpool', [poolId]);
+      const response = await this.rpcClient.call<RPCLiquidityPool>('getpool', [poolId]);
       if (!response) return null;
-
-      const providers: LiquidityProvider[] = response.providers.map((provider: any) => ({
-        address: provider.address,
-        amount: BigInt(provider.amount)
-      }));
 
       return {
         id: response.id,
         rune: response.rune,
         totalLiquidity: BigInt(response.totalLiquidity),
-        providers,
+        providers: response.providers.map(p => ({
+          address: p.address,
+          amount: BigInt(p.amount)
+        })),
         createdAt: new Date(response.createdAt),
         updatedAt: new Date(response.updatedAt)
       };

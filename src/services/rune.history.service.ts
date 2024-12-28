@@ -39,6 +39,25 @@ interface TransferStats {
   };
 }
 
+interface RPCTransfer {
+  txid: string;
+  amount: string;
+  timestamp: number;
+}
+
+interface RPCRuneTransfer extends RPCTransfer {
+  rune: string;
+  from: string;
+  to: string;
+  blockHeight: number;
+  status: string;
+}
+
+interface RPCAddressHistory {
+  sent: RPCTransfer[];
+  received: RPCTransfer[];
+}
+
 /**
  * Service for managing Rune transfer history and analytics
  */
@@ -63,22 +82,22 @@ export class RuneHistoryService {
    */
   async getAddressHistory(address: string, startBlock: number, endBlock: number): Promise<AddressHistory> {
     try {
-      const response = await this.rpcClient.call('getaddresshistory', [address, startBlock, endBlock]);
+      const response = await this.rpcClient.call<RPCAddressHistory>('getaddresshistory', [address, startBlock, endBlock]);
       
-      const sent = response.sent.map((tx: any) => ({
+      const sent = response.sent.map((tx: RPCTransfer) => ({
         txid: tx.txid,
         amount: tx.amount,
         timestamp: tx.timestamp
       }));
 
-      const received = response.received.map((tx: any) => ({
+      const received = response.received.map((tx: RPCTransfer) => ({
         txid: tx.txid,
         amount: tx.amount,
         timestamp: tx.timestamp
       }));
 
-      const totalSent = sent.reduce((sum: bigint, tx: any) => sum + BigInt(tx.amount), BigInt(0)).toString();
-      const totalReceived = received.reduce((sum: bigint, tx: any) => sum + BigInt(tx.amount), BigInt(0)).toString();
+      const totalSent = sent.reduce((sum: bigint, tx: RPCTransfer) => sum + BigInt(tx.amount), BigInt(0)).toString();
+      const totalReceived = received.reduce((sum: bigint, tx: RPCTransfer) => sum + BigInt(tx.amount), BigInt(0)).toString();
 
       return {
         sent,
@@ -149,9 +168,9 @@ export class RuneHistoryService {
    */
   private async _getTransfersByTimeRange(startTime: number, endTime: number): Promise<RuneTransfer[]> {
     try {
-      const response = await this.rpcClient.call('gettransfers', [startTime, endTime]);
+      const response = await this.rpcClient.call<RPCRuneTransfer[]>('gettransfers', [startTime, endTime]);
 
-      return response.map(item => ({
+      return response.map((item: RPCRuneTransfer) => ({
         txid: item.txid,
         rune: item.rune,
         amount: item.amount,
@@ -169,8 +188,8 @@ export class RuneHistoryService {
 
   async getRuneHistory(rune: string, startBlock: number, endBlock: number): Promise<RuneHistory> {
     try {
-      const response = await this.rpcClient.call('getrune', [rune, startBlock, endBlock]);
-      const transfers = response.map((tx: any) => ({
+      const response = await this.rpcClient.call<RPCRuneTransfer[]>('getrune', [rune, startBlock, endBlock]);
+      const transfers = response.map((tx: RPCRuneTransfer) => ({
         txid: tx.txid,
         rune: tx.rune,
         amount: tx.amount,
@@ -178,7 +197,7 @@ export class RuneHistoryService {
         to: tx.to,
         timestamp: tx.timestamp,
         blockHeight: tx.blockHeight,
-        status: tx.status
+        status: tx.status as 'pending' | 'confirmed' | 'failed'
       }));
 
       return {

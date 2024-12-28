@@ -30,8 +30,17 @@ interface MetricEntry {
   timestamp: number;
 }
 
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+interface NetworkInfo {
+  connections: number;
+}
+
 export class RunePerformanceService {
-  private cache: Map<string, { data: any; timestamp: number }>;
+  private cache: Map<string, CacheEntry<unknown>>;
   private metrics: Map<string, MetricEntry[]>;
   private batchStats: BatchStats;
   private readonly cacheConfig: CacheConfig;
@@ -67,7 +76,7 @@ export class RunePerformanceService {
    * @param key Cache key
    * @param data Data to cache
    */
-  async cacheResponse(key: string, data: any): Promise<void> {
+  async cacheResponse<T>(key: string, data: T): Promise<void> {
     // Implement LRU cache eviction if needed
     if (this.cache.size >= this.cacheConfig.maxSize) {
       const oldestKey = this.cache.keys().next().value;
@@ -85,7 +94,7 @@ export class RunePerformanceService {
    * @param key Cache key
    * @returns Cached data or null
    */
-  getCachedResponse(key: string): any | null {
+  getCachedResponse<T>(key: string): T | null {
     const cached = this.cache.get(key);
     if (!cached) return null;
 
@@ -95,7 +104,7 @@ export class RunePerformanceService {
       return null;
     }
 
-    return cached.data;
+    return cached.data as T;
   }
 
   /**
@@ -323,7 +332,7 @@ export class RunePerformanceService {
    */
   private async getNetworkMetrics(): Promise<{ activeConnections: number }> {
     try {
-      const response = await this.rpcClient.call('getconnectioninfo', []);
+      const response = await this.rpcClient.call<NetworkInfo>('getconnectioninfo', []);
       return {
         activeConnections: response.connections || 0
       };

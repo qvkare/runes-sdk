@@ -33,16 +33,40 @@ interface OrderValidation {
   errors: string[];
 }
 
+interface MetricEntry {
+  duration: number;
+  success: boolean;
+  timestamp: number;
+}
+
+interface BatchStats {
+  totalBatches: number;
+  averageBatchSize: number;
+  successfulBatches: number;
+  failedBatches: number;
+  averageProcessingTime: number;
+}
+
 export class RuneOrderService {
   private orderBooks: Map<string, OrderBook>;
   private orders: Map<string, Order>;
   private readonly minOrderAmount: bigint = BigInt(1000); // Minimum order amount
   private readonly maxOrderAmount: bigint = BigInt(1000000); // Maximum order amount
   private readonly maxPriceDeviation: number = 0.1; // Maximum 10% price deviation
+  private readonly metrics: Map<string, MetricEntry[]>;
+  private batchStats: BatchStats;
 
   constructor(private readonly rpcClient: RPCClient) {
     this.orderBooks = new Map();
     this.orders = new Map();
+    this.metrics = new Map();
+    this.batchStats = {
+      totalBatches: 0,
+      averageBatchSize: 0,
+      successfulBatches: 0,
+      failedBatches: 0,
+      averageProcessingTime: 0
+    };
   }
 
   /**
@@ -369,7 +393,9 @@ export class RuneOrderService {
     if (completedOrders.length === 0) return null;
 
     const lastOrder = completedOrders[0];
-    const matchedOrder = this.orders.get(lastOrder.matchedWith!);
+    if (!lastOrder.matchedWith) return null;
+
+    const matchedOrder = this.orders.get(lastOrder.matchedWith);
     if (!matchedOrder) return null;
 
     return {
@@ -419,5 +445,18 @@ export class RuneOrderService {
     if (operation === 'batch_processing') {
       this.updateBatchStats(duration, success);
     }
+  }
+
+  private updateBatchStats(duration: number, success: boolean): void {
+    this.batchStats.totalBatches++;
+    if (success) {
+      this.batchStats.successfulBatches++;
+    } else {
+      this.batchStats.failedBatches++;
+    }
+
+    // Update average processing time
+    const totalTime = this.batchStats.averageProcessingTime * (this.batchStats.totalBatches - 1);
+    this.batchStats.averageProcessingTime = (totalTime + duration) / this.batchStats.totalBatches;
   }
 } 
