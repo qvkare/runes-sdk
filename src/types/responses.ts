@@ -15,11 +15,14 @@ export interface RuneBalance {
 }
 
 export interface RuneTransfer {
+  txid: string;
   rune: string;
-  amount: string;
   from: string;
   to: string;
-  txid: string;
+  amount: string;
+  timestamp: number;
+  blockHeight: number;
+  status: 'pending' | 'confirmed' | 'failed';
 }
 
 export interface RuneTransaction {

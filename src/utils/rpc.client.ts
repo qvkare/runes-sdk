@@ -55,7 +55,7 @@ export class RPCClient {
     }
 
     throw new RPCRetryError(
-      `Failed after ${attempts} attempts: ${lastError?.message}`,
+      `Failed to execute RPC call after ${attempts} attempts`,
       attempts
     );
   }
