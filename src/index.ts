@@ -10,9 +10,9 @@ import {
   PaginatedResponse,
   SearchOptions,
   PaginationOptions,
-} from './types';
+} from './types/index';
 
-export * from './types';
+export * from './types/index';
 
 export class RunesSDK {
   private readonly api: APIService;
