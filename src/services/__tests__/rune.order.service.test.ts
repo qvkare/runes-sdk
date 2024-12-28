@@ -162,4 +162,113 @@ describe('RuneOrderService', () => {
       expect(orderBook.buyOrders.length + orderBook.sellOrders.length).toBeLessThan(2);
     });
   });
+
+  describe('order validation', () => {
+    it('should validate order amount', async () => {
+      const invalidOrder = {
+        runeId: 'RUNE1',
+        type: 'buy' as const,
+        amount: BigInt(0),
+        price: BigInt(1000),
+        address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'
+      };
+
+      mockRpcClient.call.mockResolvedValueOnce({ valid: true });
+      mockRpcClient.call.mockResolvedValueOnce({ price: '1000' });
+
+      await expect(orderService.placeOrder(invalidOrder)).rejects.toThrow();
+    });
+
+    it('should validate order price', async () => {
+      const order = {
+        runeId: 'RUNE1',
+        type: 'buy' as const,
+        amount: BigInt(1000),
+        price: BigInt(0),
+        address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'
+      };
+
+      mockRpcClient.call.mockResolvedValueOnce({ valid: true });
+      mockRpcClient.call.mockResolvedValueOnce({ price: '1000' });
+
+      await expect(orderService.placeOrder(order)).rejects.toThrow();
+    });
+  });
+
+  describe('order matching', () => {
+    it('should match orders with same price', async () => {
+      const buyOrder = {
+        runeId: 'RUNE1',
+        type: 'buy' as const,
+        amount: BigInt(1000),
+        price: BigInt(1000),
+        address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'
+      };
+
+      const sellOrder = {
+        runeId: 'RUNE1',
+        type: 'sell' as const,
+        amount: BigInt(1000),
+        price: BigInt(1000),
+        address: '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX'
+      };
+
+      mockRpcClient.call.mockResolvedValue({ valid: true });
+      mockRpcClient.call.mockResolvedValue({ price: '1000' });
+
+      await orderService.placeOrder(buyOrder);
+      await orderService.placeOrder(sellOrder);
+
+      const orderBook = orderService.getOrderBook('RUNE1');
+      expect(orderBook.buyOrders).toHaveLength(0);
+      expect(orderBook.sellOrders).toHaveLength(0);
+    });
+
+    it('should partially match orders with different amounts', async () => {
+      const buyOrder = {
+        runeId: 'RUNE1',
+        type: 'buy' as const,
+        amount: BigInt(2000),
+        price: BigInt(1000),
+        address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'
+      };
+
+      const sellOrder = {
+        runeId: 'RUNE1',
+        type: 'sell' as const,
+        amount: BigInt(1000),
+        price: BigInt(1000),
+        address: '12c6DSiU4Rq3P4ZxziKxzrL5SLmMBrzjrJX'
+      };
+
+      mockRpcClient.call.mockResolvedValue({ valid: true });
+      mockRpcClient.call.mockResolvedValue({ price: '1000' });
+
+      await orderService.placeOrder(buyOrder);
+      await orderService.placeOrder(sellOrder);
+
+      const orderBook = orderService.getOrderBook('RUNE1');
+      expect(orderBook.buyOrders).toHaveLength(1);
+      expect(orderBook.sellOrders).toHaveLength(0);
+      expect(orderBook.buyOrders[0].amount).toBe(BigInt(1000));
+    });
+  });
+
+  describe('metrics recording', () => {
+    it('should record operation metrics', () => {
+      orderService.recordMetrics('test_operation', 100, true);
+      orderService.recordMetrics('test_operation', 200, true);
+      orderService.recordMetrics('test_operation', 300, false);
+
+      // Metrics are private, so we can only test indirectly through batch stats
+      orderService.recordMetrics('batch_processing', 100, true);
+      orderService.recordMetrics('batch_processing', 200, false);
+
+      // Verify batch stats were updated
+      const stats = (orderService as any).batchStats;
+      expect(stats.totalBatches).toBe(2);
+      expect(stats.successfulBatches).toBe(1);
+      expect(stats.failedBatches).toBe(1);
+    });
+  });
 }); 

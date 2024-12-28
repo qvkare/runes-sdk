@@ -99,5 +99,55 @@ describe('RuneBatchService', () => {
         error: 'Transfer failed'
       });
     });
+
+    it('should handle empty transfer list', async () => {
+      const transfers: { from: string; to: string; amount: bigint }[] = [];
+
+      const results = await runeBatchService.processBatchTransfers(transfers);
+
+      expect(runeService.createTransfer).not.toHaveBeenCalled();
+      expect(results).toHaveLength(0);
+    });
+
+    it('should handle unknown error types', async () => {
+      const transfers = [
+        { from: 'address1', to: 'address2', amount: BigInt(100) }
+      ];
+
+      runeService.createTransfer.mockRejectedValueOnce('Unknown error type');
+
+      const results = await runeBatchService.processBatchTransfers(transfers);
+
+      expect(runeService.createTransfer).toHaveBeenCalledTimes(1);
+      expect(results).toHaveLength(1);
+      expect(results[0]).toEqual({
+        id: '',
+        txid: '',
+        status: 'failed',
+        error: 'Unknown error'
+      });
+    });
+
+    it('should handle general processing error', async () => {
+      const transfers = [
+        { from: 'address1', to: 'address2', amount: BigInt(100) }
+      ];
+
+      // Simulating a general processing error
+      runeService.createTransfer.mockImplementation(() => {
+        throw new Error('General processing error');
+      });
+
+      const results = await runeBatchService.processBatchTransfers(transfers);
+
+      expect(runeService.createTransfer).toHaveBeenCalledTimes(1);
+      expect(results).toHaveLength(1);
+      expect(results[0]).toEqual({
+        id: '',
+        txid: '',
+        status: 'failed',
+        error: 'General processing error'
+      });
+    });
   });
 }); 

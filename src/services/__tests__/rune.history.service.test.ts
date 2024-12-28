@@ -1,5 +1,6 @@
 import { RuneHistoryService } from '../rune.history.service';
 import { RPCClient } from '../../utils/rpc.client';
+import { BitcoinConfig } from '../../config/bitcoin.config';
 
 jest.mock('../../utils/rpc.client');
 
@@ -8,9 +9,25 @@ describe('RuneHistoryService', () => {
   let mockRpcClient: jest.Mocked<RPCClient>;
 
   beforeEach(() => {
+    const mockConfig: BitcoinConfig = {
+      rpcUrl: 'http://localhost:8332',
+      username: 'test',
+      password: 'test',
+      timeout: 30000,
+      maxRetries: 3,
+      network: 'testnet'
+    };
+
     mockRpcClient = {
+      baseUrl: mockConfig.rpcUrl,
+      auth: Buffer.from(`${mockConfig.username}:${mockConfig.password}`).toString('base64'),
+      timeout: mockConfig.timeout,
+      maxRetries: mockConfig.maxRetries,
+      retryDelay: 1000,
+      config: mockConfig,
+      logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
       call: jest.fn()
-    } as jest.Mocked<RPCClient>;
+    } as unknown as jest.Mocked<RPCClient>;
 
     historyService = new RuneHistoryService();
     (historyService as any).rpcClient = mockRpcClient;
@@ -99,6 +116,99 @@ describe('RuneHistoryService', () => {
 
       await expect(historyService.getAddressHistory('addr1', 100, 101))
         .rejects.toThrow('Failed to get address history');
+    });
+  });
+
+  describe('getTransferStats', () => {
+    it('should get transfer statistics for a rune', async () => {
+      const mockTransfers = [
+        {
+          txid: 'tx1',
+          rune: 'RUNE1',
+          amount: '1000',
+          from: 'addr1',
+          to: 'addr2',
+          timestamp: Date.now(),
+          blockHeight: 100,
+          status: 'confirmed'
+        },
+        {
+          txid: 'tx2',
+          rune: 'RUNE1',
+          amount: '2000',
+          from: 'addr2',
+          to: 'addr3',
+          timestamp: Date.now(),
+          blockHeight: 101,
+          status: 'confirmed'
+        }
+      ];
+
+      mockRpcClient.call.mockResolvedValueOnce(mockTransfers);
+
+      const stats = await historyService.getTransferStats('RUNE1');
+
+      expect(stats.totalTransfers).toBe(2);
+      expect(stats.totalVolume).toBe('3000');
+      expect(stats.averageAmount).toBe('1500');
+      expect(stats.largestAmount).toBe('2000');
+      expect(stats.smallestAmount).toBe('1000');
+      expect(stats.timeRange.start).toBe(0);
+      expect(stats.timeRange.end).toBeDefined();
+    });
+
+    it('should handle empty transfer statistics', async () => {
+      mockRpcClient.call.mockResolvedValueOnce([]);
+
+      const stats = await historyService.getTransferStats('RUNE1');
+
+      expect(stats.totalTransfers).toBe(0);
+      expect(stats.totalVolume).toBe('0');
+      expect(stats.averageAmount).toBe('0');
+      expect(stats.largestAmount).toBe('0');
+      expect(stats.smallestAmount).toBe('0');
+      expect(stats.timeRange.start).toBe(0);
+      expect(stats.timeRange.end).toBeDefined();
+    });
+
+    it('should handle transfer statistics errors', async () => {
+      mockRpcClient.call.mockRejectedValueOnce(new Error('Failed to fetch transfers'));
+
+      await expect(historyService.getTransferStats('RUNE1'))
+        .rejects.toThrow('Failed to get transfer stats');
+    });
+  });
+
+  describe('_getTransfersByTimeRange', () => {
+    it('should get transfers within a time range', async () => {
+      const mockTransfers = [
+        {
+          txid: 'tx1',
+          rune: 'RUNE1',
+          amount: '1000',
+          from: 'addr1',
+          to: 'addr2',
+          timestamp: Date.now(),
+          blockHeight: 100,
+          status: 'confirmed'
+        }
+      ];
+
+      mockRpcClient.call.mockResolvedValueOnce(mockTransfers);
+
+      const transfers = await (historyService as any)._getTransfersByTimeRange(0, Date.now());
+
+      expect(transfers).toHaveLength(1);
+      expect(transfers[0].txid).toBe('tx1');
+      expect(transfers[0].amount).toBe('1000');
+      expect(transfers[0].status).toBe('confirmed');
+    });
+
+    it('should handle time range transfer errors', async () => {
+      mockRpcClient.call.mockRejectedValueOnce(new Error('Failed to fetch transfers'));
+
+      await expect((historyService as any)._getTransfersByTimeRange(0, Date.now()))
+        .rejects.toThrow('Failed to fetch transfers');
     });
   });
 }); 
