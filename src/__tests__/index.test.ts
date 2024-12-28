@@ -148,24 +148,14 @@ describe('RunesSDK', () => {
 
   describe('searchRunes', () => {
     it('should call api.searchRunes with correct parameters', async () => {
-      const mockSearch = {
-        items: [{
-          id: 'TEST',
-          symbol: 'TST',
-          supply: '1000',
-          timestamp: Date.now(),
-          mintable: true
-        }],
-        total: 1
-      };
+      const mockResponse = { data: [], total: 0 };
+      (APIService.prototype.searchRunes as jest.Mock).mockResolvedValue(mockResponse);
 
-      (APIService.prototype.searchRunes as jest.Mock).mockResolvedValueOnce(mockSearch);
-
-      const options = { term: 'test' };
+      const options = { query: 'test' };
       const result = await sdk.searchRunes(options);
 
       expect(APIService.prototype.searchRunes).toHaveBeenCalledWith(options);
-      expect(result).toEqual(mockSearch);
+      expect(result).toEqual(mockResponse);
     });
   });
 }); 

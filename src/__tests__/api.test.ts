@@ -97,8 +97,7 @@ describe('APIService', () => {
         signal: mockSignal
       };
 
-      // @ts-expect-error - Mock implementation
-      global.AbortController = jest.fn(() => mockController);
+      global.AbortController = jest.fn(() => mockController) as unknown as typeof AbortController;
       
       // Mock fetch to simulate a timeout
       global.fetch = jest.fn().mockImplementationOnce(() => {
@@ -441,7 +440,7 @@ describe('APIService', () => {
         json: async () => mockResponse
       });
 
-      const result = await api.searchRunes({ term: 'test' });
+      const result = await api.searchRunes({ query: 'test' });
 
       expect(global.fetch).toHaveBeenCalledWith(
         'https://api.example.com/api/v1/runes/search',
@@ -450,7 +449,7 @@ describe('APIService', () => {
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ term: 'test' })
+          body: JSON.stringify({ query: 'test' })
         })
       );
       expect(result).toEqual(mockResponse);
@@ -458,7 +457,7 @@ describe('APIService', () => {
 
     it('should handle empty search results', async () => {
       const mockResponse = {
-        items: [],
+        data: [],
         total: 0
       };
 
@@ -467,8 +466,8 @@ describe('APIService', () => {
         json: async () => mockResponse
       });
 
-      const result = await api.searchRunes({ term: 'nonexistent' });
-      expect(result.items).toHaveLength(0);
+      const result = await api.searchRunes({ query: 'nonexistent' });
+      expect(result.data).toHaveLength(0);
       expect(result.total).toBe(0);
     });
   });
