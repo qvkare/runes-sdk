@@ -45,7 +45,7 @@ export class RPCClient {
           throw error;
         }
 
-        if (error instanceof RPCError && this.shouldRetry(error)) {
+        if (error instanceof RPCError && this.shouldRetry(error as RPCError)) {
           await this.delay(this.getRetryDelay(attempts));
           continue;
         }
@@ -112,7 +112,7 @@ export class RPCClient {
    * @throws {RPCError} When response contains an error
    */
   private handleResponse<T>(response: RPCResponse): T {
-    if ('error' in response) {
+    if ('error' in response && response.error) {
       throw new RPCError(
         response.error.message,
         response.error.code,
@@ -132,13 +132,9 @@ export class RPCClient {
    * @param error Error to check
    * @returns True if should retry
    */
-  private shouldRetry(error: Error): boolean {
-    if (error instanceof RPCError) {
-      // Retry on connection errors or specific Bitcoin Core errors
-      return error.code === -28 || // Loading block index
-             error.code === -8;    // Server in warmup
-    }
-    return false;
+  private shouldRetry(error: RPCError): boolean {
+    return error.code === -28 || // Loading block index
+           error.code === -8;    // Server in warmup
   }
 
   /**
