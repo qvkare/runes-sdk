@@ -43,13 +43,14 @@ export interface ValidationResult {
 }
 
 export interface SearchResult {
-  items: RuneInfo[];
+  data: RuneInfo[];
   total: number;
 }
 
 export interface PaginatedResponse<T> {
-  items: T[];
+  data: T[];
   total: number;
-  offset: number;
+  page: number;
   limit: number;
+  pages: number;
 } 

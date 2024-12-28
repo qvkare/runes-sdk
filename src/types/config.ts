@@ -6,14 +6,16 @@ export interface SDKConfig {
 }
 
 export interface PaginationOptions {
+  page?: number;
   limit?: number;
-  offset?: number;
   orderBy?: string;
   order?: 'asc' | 'desc';
 }
 
 export interface SearchOptions {
-  term: string;
-  field?: 'id' | 'symbol';
-  includeMetadata?: boolean;
+  query: string;
+  type?: string;
+  status?: string;
+  sort?: string;
+  order?: 'asc' | 'desc';
 } 
