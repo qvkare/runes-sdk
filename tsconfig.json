@@ -1,33 +1,17 @@
 {
   "compilerOptions": {
-<<<<<<< HEAD
-    "target": "es2018",
-    "module": "commonjs",
-    "lib": ["es2018", "dom"],
-    "declaration": true,
-    "outDir": "./dist",
-    "rootDir": "./src",
-=======
     "target": "es2015",
     "module": "commonjs",
     "declaration": true,
     "outDir": "./dist",
->>>>>>> 89d7e15 (feat: initial commit with complete test coverage)
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-<<<<<<< HEAD
+    "lib": ["es2015", "dom"],
+    "rootDir": "./src",
     "moduleResolution": "node"
   },
   "include": ["src"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
-}
-=======
-    "lib": ["es2015", "dom"],
-    "rootDir": "./src"
-  },
-  "include": ["src"],
   "exclude": ["node_modules", "dist", "**/__tests__/*"]
-} 
->>>>>>> 89d7e15 (feat: initial commit with complete test coverage)
+}
