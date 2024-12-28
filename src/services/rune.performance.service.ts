@@ -164,7 +164,9 @@ export class RunePerformanceService {
       this.metrics.set(operation, []);
     }
 
-    const operationMetrics = this.metrics.get(operation)!;
+    const operationMetrics = this.metrics.get(operation);
+    if (!operationMetrics) return;
+
     operationMetrics.push({
       duration: success ? duration : -duration,
       success,

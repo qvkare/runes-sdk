@@ -1,5 +1,5 @@
 import { RPCClient } from '../utils/rpc.client';
-import { RuneTransfer, RuneOperationType } from '../types/rune.types';
+import { RuneTransfer } from '../types/rune.types';
 import { RPCError } from '../utils/errors';
 
 interface Order {
@@ -223,7 +223,7 @@ export class RuneOrderService {
     const orderBook = this.orderBooks.get(runeId);
     if (!orderBook) return;
 
-    let matches: OrderMatch[] = [];
+    const matches: OrderMatch[] = [];
     let i = 0, j = 0;
 
     // Match orders while possible
@@ -394,5 +394,30 @@ export class RuneOrderService {
    */
   private generateTransferId(): string {
     return `transfer_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  recordMetrics(operation: string, duration: number, success: boolean): void {
+    if (!this.metrics.has(operation)) {
+      this.metrics.set(operation, []);
+    }
+
+    const operationMetrics = this.metrics.get(operation);
+    if (!operationMetrics) return;
+
+    operationMetrics.push({
+      duration: success ? duration : -duration,
+      success,
+      timestamp: Date.now()
+    });
+
+    // Keep only last 1000 measurements
+    if (operationMetrics.length > 1000) {
+      operationMetrics.shift();
+    }
+
+    // Update batch stats if this was a batch operation
+    if (operation === 'batch_processing') {
+      this.updateBatchStats(duration, success);
+    }
   }
 } 

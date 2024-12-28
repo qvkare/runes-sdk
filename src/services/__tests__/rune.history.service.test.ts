@@ -10,11 +10,10 @@ describe('RuneHistoryService', () => {
   beforeEach(() => {
     mockRpcClient = {
       call: jest.fn()
-    } as any;
+    } as jest.Mocked<RPCClient>;
 
     historyService = new RuneHistoryService();
-    // @ts-ignore
-    historyService.rpcClient = mockRpcClient;
+    (historyService as any).rpcClient = mockRpcClient;
   });
 
   describe('getRuneHistory', () => {

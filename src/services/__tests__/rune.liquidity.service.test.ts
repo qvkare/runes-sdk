@@ -1,6 +1,5 @@
 import { RuneLiquidityService } from '../rune.liquidity.service';
 import { RPCClient } from '../../utils/rpc.client';
-import { LiquidityPool } from '../../types/liquidity.types';
 
 jest.mock('../../utils/rpc.client');
 

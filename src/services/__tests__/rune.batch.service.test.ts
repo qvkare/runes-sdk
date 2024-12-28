@@ -1,7 +1,5 @@
 import { RuneBatchService } from '../rune.batch.service';
 import { RuneService } from '../rune.service';
-import { RPCClient } from '../../utils/rpc.client';
-import { BatchTransferResult } from '../../types/rune.types';
 
 jest.mock('../rune.service');
 

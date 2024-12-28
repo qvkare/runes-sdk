@@ -1,6 +1,7 @@
 import { BitcoinConfig } from '../config/bitcoin.config';
 import { RPCError, RPCTimeoutError, RPCRetryError, RPCResponseError } from './errors';
 import { RPCRequest, RPCResponse, RPCClientOptions } from './rpc.types';
+import { Logger } from '../utils/logger';
 
 /**
  * JSON-RPC 2.0 client for Bitcoin Core
@@ -11,11 +12,15 @@ export class RPCClient {
   private readonly timeout: number;
   private readonly maxRetries: number;
   private readonly retryDelay: number;
+  private readonly config: BitcoinConfig;
+  private readonly logger: Logger;
 
   constructor(
-    private readonly config: BitcoinConfig,
+    config: BitcoinConfig,
     options: RPCClientOptions = {}
   ) {
+    this.config = config;
+    this.logger = new Logger('RPCClient');
     this.baseUrl = config.rpcUrl;
     this.auth = Buffer.from(`${config.username}:${config.password}`).toString('base64');
     this.timeout = options.timeout ?? config.timeout ?? 30000;
@@ -32,13 +37,11 @@ export class RPCClient {
    */
   async call<T = any>(method: string, params: any[] = []): Promise<T> {
     let attempts = 0;
-    let lastError: Error | null = null;
 
     while (attempts < this.maxRetries) {
       try {
         return await this.makeRequest<T>(method, params);
       } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
         attempts++;
 
         if (error instanceof RPCTimeoutError) {

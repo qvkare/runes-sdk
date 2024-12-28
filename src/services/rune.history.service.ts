@@ -100,48 +100,44 @@ export class RuneHistoryService {
    * @param endTime End timestamp
    * @returns Transfer statistics including volumes and averages
    */
-  async getTransferStats(startTime: number, endTime: number): Promise<TransferStats> {
+  async getTransferStats(rune: string): Promise<TransferStats> {
     try {
-      // Get transfers in time range
-      const transfers = await this._getTransfersByTimeRange(startTime, endTime);
+      const transfers = await this._getTransfersByTimeRange(0, Date.now());
+      const runeTransfers = transfers.filter(t => t.rune === rune);
 
-      // Calculate total volume
-      const totalVolume = transfers.reduce((sum, t) => sum + BigInt(t.amount), BigInt(0)).toString();
+      if (runeTransfers.length === 0) {
+        return {
+          totalTransfers: 0,
+          totalVolume: '0',
+          averageAmount: '0',
+          largestAmount: '0',
+          smallestAmount: '0',
+          timeRange: {
+            start: 0,
+            end: Date.now()
+          }
+        };
+      }
 
-      // Get amounts for min/max
-      const amounts = transfers.map(t => BigInt(t.amount));
-      const largestAmount = (Math.max(...amounts.map(n => Number(n)))).toString();
-      const smallestAmount = (Math.min(...amounts.map(n => Number(n)))).toString();
+      const amounts = runeTransfers.map(t => BigInt(t.amount));
+      const totalVolume = amounts.reduce((a, b) => a + b, BigInt(0));
+      const averageAmount = totalVolume / BigInt(runeTransfers.length);
+      const largestAmount = amounts.reduce((a, b) => a > b ? a : b);
+      const smallestAmount = amounts.reduce((a, b) => a < b ? a : b);
 
       return {
-        totalTransfers: transfers.length,
-        totalVolume,
-        averageAmount: (BigInt(totalVolume) / BigInt(transfers.length || 1)).toString(),
-        largestAmount,
-        smallestAmount,
+        totalTransfers: runeTransfers.length,
+        totalVolume: totalVolume.toString(),
+        averageAmount: averageAmount.toString(),
+        largestAmount: largestAmount.toString(),
+        smallestAmount: smallestAmount.toString(),
         timeRange: {
-          start: startTime,
-          end: endTime
+          start: 0,
+          end: Date.now()
         }
       };
     } catch (error) {
-      this.logger.error('Failed to get transfer stats:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Gets all transfers for an address
-   * @param address The address to get transfers for
-   * @returns Array of transfers
-   */
-  private async _getAddressTransfers(address: string): Promise<RuneTransfer[]> {
-    try {
-      // Mock implementation
-      return [];
-    } catch (error) {
-      this.logger.error('Failed to get address transfers:', error);
-      throw error;
+      throw new Error(`Failed to get transfer stats: ${error}`);
     }
   }
 
@@ -153,19 +149,7 @@ export class RuneHistoryService {
    */
   private async _getTransfersByTimeRange(startTime: number, endTime: number): Promise<RuneTransfer[]> {
     try {
-      // Mock implementation
-      const response = [
-        {
-          txid: 'tx1',
-          rune: 'RUNE1',
-          amount: '1000',
-          from: 'addr1',
-          to: 'addr2',
-          timestamp: Date.now(),
-          blockHeight: 100,
-          status: 'confirmed'
-        }
-      ];
+      const response = await this.rpcClient.call('gettransfers', [startTime, endTime]);
 
       return response.map(item => ({
         txid: item.txid,
