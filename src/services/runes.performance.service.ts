@@ -1,5 +1,5 @@
 import { RPCClient } from '../utils/rpc.client';
-import { RuneTransfer } from '../types/rune.types';
+import { RunesTransfer } from '../types/runes.types';
 import { RPCError } from '../utils/errors';
 import { Logger } from '../utils/logger';
 
@@ -39,7 +39,7 @@ interface NetworkInfo {
   connections: number;
 }
 
-export class RunePerformanceService {
+export class RunesPerformanceService {
   private cache: Map<string, CacheEntry<unknown>>;
   private metrics: Map<string, MetricEntry[]>;
   private batchStats: BatchStats;
@@ -65,7 +65,7 @@ export class RunePerformanceService {
       failedBatches: 0,
       averageProcessingTime: 0
     };
-    this.logger = new Logger('RunePerformanceService');
+    this.logger = new Logger('RunesPerformanceService');
 
     // Start periodic cache cleanup
     setInterval(() => this.cleanupCache(), this.cacheConfig.ttl);
@@ -112,13 +112,13 @@ export class RunePerformanceService {
    * @param transfers Transfers to process
    * @returns Optimized batches
    */
-  async optimizeBatches(transfers: RuneTransfer[]): Promise<RuneTransfer[][]> {
+  async optimizeBatches(transfers: RunesTransfer[]): Promise<RunesTransfer[][]> {
     const maxBatchSize = 100;
-    let currentBatch: RuneTransfer[] = [];
+    let currentBatch: RunesTransfer[] = [];
     let currentBatchSize = 0;
     let currentBatchVolume = '0';
     const maxBatchVolume = '1000000'; // 1M runes per batch
-    const batches: RuneTransfer[][] = [];
+    const batches: RunesTransfer[][] = [];
 
     for (const transfer of transfers) {
       // Check if adding this transfer would exceed batch limits
@@ -151,11 +151,10 @@ export class RunePerformanceService {
    * Process a batch of transfers
    * @param batch Batch of transfers to process
    */
-  private async _processBatch(batch: RuneTransfer[]): Promise<void> {
-    // Implementation of batch processing
+  private async _processBatch(batch: RunesTransfer[]): Promise<void> {
     for (const transfer of batch) {
       try {
-        await this.rpcClient.call('processrunetransfer', [transfer]);
+        await this.rpcClient.call('processrunestransfer', [transfer]);
       } catch (error) {
         this.logger.error(`Failed to process transfer ${transfer.txid}:`, error);
       }
@@ -319,7 +318,7 @@ export class RunePerformanceService {
     const metrics = this.metrics.get(operation) || [];
     if (metrics.length === 0) return 0;
 
-    // Son 1 saniye içindeki işlem sayısını hesapla
+    // Calculate number of transactions in the last second
     const now = Date.now();
     const oneSecondAgo = now - 1000;
     const recentMetrics = metrics.filter(m => m.timestamp >= oneSecondAgo);

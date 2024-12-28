@@ -1,16 +1,12 @@
-import { RuneValidationResult } from '../types/validation.types';
-import { Logger } from './logger';
+import { Logger } from '../utils/logger';
+import { RunesValidationResult } from '../types/validation.types';
 
-export class RuneValidator extends Logger {
+export class RunesValidator extends Logger {
   constructor() {
-    super('RuneValidator');
+    super('RunesValidator');
   }
 
-  private _validateAddress(address: string): boolean {
-    return Boolean(address && typeof address === 'string' && address.length >= 26 && address.length <= 35);
-  }
-
-  async validateTransfer(from: string, to: string, amount: bigint): Promise<RuneValidationResult> {
+  async validateTransfer(from: string, to: string, amount: bigint): Promise<RunesValidationResult> {
     try {
       const errors: string[] = [];
 
@@ -34,5 +30,9 @@ export class RuneValidator extends Logger {
       this.error('Failed to validate transfer:', error);
       throw error;
     }
+  }
+
+  private _validateAddress(address: string): boolean {
+    return Boolean(address && typeof address === 'string' && address.length >= 26 && address.length <= 35);
   }
 } 

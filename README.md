@@ -2,6 +2,17 @@
 
 TypeScript SDK for interacting with Bitcoin Runes protocol.
 
+## Features
+
+- 🚀 Full TypeScript support with type definitions
+- 🔒 Secure transaction handling
+- 🔄 Automatic retry mechanism
+- 📊 Comprehensive runes statistics
+- 💼 Advanced batch operations
+- 🔍 Detailed transaction history
+- 💧 Liquidity pool management
+- 📈 Performance monitoring
+
 ## Installation
 
 ```bash
@@ -19,17 +30,53 @@ const sdk = new RunesSDK({
   network: 'mainnet'
 });
 
-// Get rune information
-const runeInfo = await sdk.getRune('EXAMPLE');
+// Get runes information
+const runesInfo = await sdk.getRunes('EXAMPLE');
 
-// Get rune balance
-const balance = await sdk.getRuneBalance('bc1qxxx', 'EXAMPLE');
+// Get runes balance
+const balance = await sdk.getRunesBalance('bc1qxxx', 'EXAMPLE');
 
-// Get rune history
-const history = await sdk.getRuneHistory('EXAMPLE');
+// Get runes history
+const history = await sdk.getRunesHistory('EXAMPLE');
 
 // List all runes
 const runes = await sdk.listRunes();
+```
+
+## Advanced Usage
+
+### Batch Operations
+
+```typescript
+// Create multiple transfers in a single batch
+const batch = sdk.createBatch();
+batch.addTransfer('RUNES1', 'address1', 100);
+batch.addTransfer('RUNES2', 'address2', 200);
+await batch.execute();
+```
+
+### Liquidity Pool Management
+
+```typescript
+// Create a liquidity pool
+await sdk.liquidity.createPool('RUNES1', 'RUNES2', {
+  initialLiquidity: 1000
+});
+
+// Add liquidity
+await sdk.liquidity.addLiquidity('POOL_ID', {
+  runes1Amount: 500,
+  runes2Amount: 500
+});
+```
+
+### Performance Monitoring
+
+```typescript
+// Get performance metrics
+const metrics = await sdk.performance.getMetrics('RUNES1');
+console.log('Transaction throughput:', metrics.throughput);
+console.log('Average confirmation time:', metrics.avgConfirmationTime);
 ```
 
 ## Configuration
@@ -40,6 +87,11 @@ interface SDKConfig {
   network: 'mainnet' | 'testnet';
   timeout?: number;       // Request timeout in ms
   retryAttempts?: number; // Number of retry attempts
+  batchSize?: number;     // Maximum batch size
+  security?: {
+    validateAddresses: boolean;
+    requireSignature: boolean;
+  }
 }
 ```
 
@@ -47,28 +99,38 @@ interface SDKConfig {
 
 ### Core Methods
 
-#### `getRune(id: string): Promise<RuneInfo>`
-Get information about a specific rune.
+#### `getRunes(id: string): Promise<RunesInfo>`
+Get information about specific runes.
 
-#### `getRuneBalance(address: string, rune: string): Promise<RuneBalance>`
-Get rune balance for a specific address.
+#### `getRunesBalance(address: string, runes: string): Promise<RunesBalance>`
+Get runes balance for a specific address.
 
-#### `getRuneHistory(rune: string): Promise<RuneTransaction[]>`
-Get transfer history of a rune.
+#### `getRunesHistory(runes: string): Promise<RunesTransaction[]>`
+Get transfer history of runes.
 
-#### `listRunes(options?: PaginationOptions): Promise<PaginatedResponse<RuneInfo>>`
+#### `listRunes(options?: PaginationOptions): Promise<PaginatedResponse<RunesInfo>>`
 List all available runes.
 
 ### Advanced Methods
 
-#### `validateRuneTransaction(txHex: string): Promise<ValidationResult>`
-Validate a rune transaction.
+#### `validateRunesTransaction(txHex: string): Promise<ValidationResult>`
+Validate a runes transaction.
 
-#### `getRuneStats(rune: string): Promise<RuneStats>`
-Get statistics for a rune.
+#### `getRunesStats(runes: string): Promise<RunesStats>`
+Get statistics for runes.
 
 #### `searchRunes(query: SearchOptions): Promise<SearchResult>`
 Search for runes.
+
+### Security Methods
+
+```typescript
+// Validate transaction security
+const validation = await sdk.security.validateTransaction(txHex);
+if (!validation.isSecure) {
+  console.error('Security issues:', validation.issues);
+}
+```
 
 ## Error Handling
 
@@ -76,9 +138,9 @@ The SDK throws typed errors for different scenarios:
 
 ```typescript
 try {
-  const rune = await sdk.getRune('EXAMPLE');
+  const runes = await sdk.getRunes('EXAMPLE');
 } catch (error) {
-  if (error instanceof RuneSDKError) {
+  if (error instanceof RunesSDKError) {
     console.error(`Error code: ${error.code}`);
     console.error(`Error message: ${error.message}`);
   }
@@ -125,6 +187,13 @@ Coverage requirements:
 3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
+
+## Support
+
+If you encounter any issues or have questions:
+- Open an issue on GitHub
+- Check existing issues for solutions
+- Review the documentation
 
 ## License
 

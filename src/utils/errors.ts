@@ -4,8 +4,8 @@
 export class RPCError extends Error {
   constructor(
     message: string,
-    public readonly code?: number,
-    public readonly data?: any
+    public code?: number,
+    public data?: unknown
   ) {
     super(message);
     this.name = 'RPCError';
@@ -41,9 +41,50 @@ export class RPCRetryError extends RPCError {
 export class RPCResponseError extends RPCError {
   constructor(
     message: string,
-    public readonly response: any
+    public readonly response: Record<string, unknown>
   ) {
     super(message);
     this.name = 'RPCResponseError';
+  }
+}
+
+export class ValidationError extends Error {
+  constructor(
+    message: string,
+    public errors: string[]
+  ) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}
+
+export class NetworkError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NetworkError';
+  }
+}
+
+export class TimeoutError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TimeoutError';
+  }
+}
+
+export class ConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ConfigError';
+  }
+}
+
+export class ServiceError extends Error {
+  constructor(
+    message: string,
+    public details?: unknown
+  ) {
+    super(message);
+    this.name = 'ServiceError';
   }
 } 

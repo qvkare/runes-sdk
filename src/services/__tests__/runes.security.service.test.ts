@@ -1,26 +1,26 @@
-import { RuneSecurityService } from './rune.security.service';
-import { RuneTransfer } from '../types/rune.types';
+import { RunesSecurityService } from '../runes.security.service';
+import { RunesTransfer } from '../../types/runes.types';
 
-describe('RuneSecurityService', () => {
-  let securityService: RuneSecurityService;
+describe('RunesSecurityService', () => {
+  let securityService: RunesSecurityService;
 
   beforeEach(() => {
-    securityService = new RuneSecurityService({
+    securityService = new RunesSecurityService({
       maxTransferAmount: 1000000,
       maxBlockUsage: 0.75,
-      blacklistedAddresses: ['blacklisted1', 'blacklisted2'],
-      allowedAddresses: ['allowed1', 'allowed2']
+      blacklistedAddresses: ['blacklisted1'],
+      allowedAddresses: ['allowed1']
     });
   });
 
   describe('validateTransfer', () => {
     it('should validate a valid transfer', async () => {
-      const transfer: RuneTransfer = {
+      const transfer: RunesTransfer = {
         txid: 'valid_txid',
-        rune: 'RUNE',
+        runes: 'RUNES',
         from: 'valid_from',
         to: 'valid_to',
-        amount: '500000',
+        amount: '1000',
         timestamp: Date.now(),
         blockHeight: 100,
         status: 'pending'
@@ -32,9 +32,9 @@ describe('RuneSecurityService', () => {
     });
 
     it('should reject transfer with excessive amount', async () => {
-      const transfer: RuneTransfer = {
+      const transfer: RunesTransfer = {
         txid: 'valid_txid',
-        rune: 'RUNE',
+        runes: 'RUNES',
         from: 'valid_from',
         to: 'valid_to',
         amount: '2000000',

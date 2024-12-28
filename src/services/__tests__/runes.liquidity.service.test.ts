@@ -1,62 +1,58 @@
-import { RuneLiquidityService } from '../rune.liquidity.service';
+import { RunesLiquidityService } from '../runes.liquidity.service';
 import { RPCClient } from '../../utils/rpc.client';
 
 jest.mock('../../utils/rpc.client');
 
-describe('RuneLiquidityService', () => {
-  let liquidityService: RuneLiquidityService;
+describe('RunesLiquidityService', () => {
+  let liquidityService: RunesLiquidityService;
   let mockRpcClient: jest.Mocked<RPCClient>;
 
   beforeEach(() => {
-    mockRpcClient = new RPCClient({
-      rpcUrl: 'http://localhost:8332',
-      username: 'test',
-      password: 'test',
-      network: 'regtest'
-    }) as jest.Mocked<RPCClient>;
+    mockRpcClient = {
+      call: jest.fn(),
+      baseUrl: 'http://localhost:8332',
+      auth: { username: 'test', password: 'test' },
+      timeout: 5000,
+      maxRetries: 3,
+      retryDelay: 1000,
+      network: 'regtest',
+      handleError: jest.fn(),
+      handleResponse: jest.fn(),
+      buildRequestOptions: jest.fn(),
+      buildAuthHeader: jest.fn(),
+      buildUrl: jest.fn()
+    } as unknown as jest.Mocked<RPCClient>;
 
-    liquidityService = new RuneLiquidityService(mockRpcClient);
+    liquidityService = new RunesLiquidityService(mockRpcClient);
   });
 
   describe('getPool', () => {
-    it('should return pool information', async () => {
-      const mockPool = {
+    it('should get pool details', async () => {
+      const mockResponse = {
         id: 'pool1',
-        rune: 'RUNE1',
+        runes: 'RUNES1',
         totalLiquidity: '1000000',
         providers: [
           { address: 'addr1', amount: '500000' },
           { address: 'addr2', amount: '500000' }
-        ],
-        createdAt: '2023-01-01T00:00:00Z',
-        updatedAt: '2023-01-02T00:00:00Z'
+        ]
       };
 
-      mockRpcClient.call.mockResolvedValueOnce(mockPool);
+      mockRpcClient.call.mockResolvedValueOnce(mockResponse);
 
       const result = await liquidityService.getPool('pool1');
 
-      expect(result).toBeDefined();
-      expect(result?.id).toBe('pool1');
-      expect(result?.rune).toBe('RUNE1');
-      expect(result?.totalLiquidity).toBe(BigInt(1000000));
-      expect(result?.providers).toHaveLength(2);
-      expect(result?.providers[0].address).toBe('addr1');
-      expect(result?.providers[0].amount).toBe(BigInt(500000));
+      expect(result.id).toBe('pool1');
+      expect(result.runes).toBe('RUNES1');
+      expect(result.totalLiquidity).toBe(BigInt('1000000'));
+      expect(result.providers.get('addr1')).toBe(BigInt('500000'));
+      expect(result.providers.get('addr2')).toBe(BigInt('500000'));
     });
 
-    it('should return null for non-existent pool', async () => {
-      mockRpcClient.call.mockResolvedValueOnce(null);
+    it('should handle failed pool fetch', async () => {
+      mockRpcClient.call.mockRejectedValueOnce(new Error('Failed to fetch pool'));
 
-      const result = await liquidityService.getPool('non-existent');
-
-      expect(result).toBeNull();
-    });
-
-    it('should handle RPC error', async () => {
-      mockRpcClient.call.mockRejectedValueOnce(new Error('RPC error'));
-
-      await expect(liquidityService.getPool('pool1')).rejects.toThrow('RPC error');
+      await expect(liquidityService.getPool('pool1')).rejects.toThrow('Failed to fetch pool');
     });
   });
 
@@ -144,7 +140,7 @@ describe('RuneLiquidityService', () => {
     it('should handle malformed pool data', async () => {
       const malformedPool = {
         id: 'pool1',
-        rune: 'RUNE1',
+        runes: 'RUNES1',
         totalLiquidity: 'invalid',
         providers: [
           { address: 'addr1', amount: 'invalid' }
@@ -161,7 +157,7 @@ describe('RuneLiquidityService', () => {
     it('should handle missing provider data', async () => {
       const incompletePool = {
         id: 'pool1',
-        rune: 'RUNE1',
+        runes: 'RUNES1',
         totalLiquidity: '1000000',
         providers: null,
         createdAt: '2023-01-01T00:00:00Z',

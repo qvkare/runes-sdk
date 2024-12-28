@@ -1,39 +1,38 @@
 import { RPCClient } from '../utils/rpc.client';
-import { LiquidityPool } from '../types/liquidity.types';
 import { Logger } from '../utils/logger';
 
-interface RPCLiquidityPool {
+interface LiquidityPool {
   id: string;
-  rune: string;
+  runes: string;
+  totalLiquidity: bigint;
+  providers: Map<string, bigint>;
+}
+
+interface PoolResponse {
+  id: string;
+  runes: string;
   totalLiquidity: string;
   providers: Array<{
     address: string;
     amount: string;
   }>;
-  createdAt: string;
-  updatedAt: string;
 }
 
-export class RuneLiquidityService extends Logger {
+export class RunesLiquidityService extends Logger {
   constructor(private readonly rpcClient: RPCClient) {
-    super('RuneLiquidityService');
+    super('RunesLiquidityService');
   }
 
-  async getPool(poolId: string): Promise<LiquidityPool | null> {
+  async getPool(poolId: string): Promise<LiquidityPool> {
     try {
-      const response = await this.rpcClient.call<RPCLiquidityPool>('getpool', [poolId]);
-      if (!response) return null;
-
+      const response = await this.rpcClient.call<PoolResponse>('getpool', [poolId]);
       return {
         id: response.id,
-        rune: response.rune,
+        runes: response.runes,
         totalLiquidity: BigInt(response.totalLiquidity),
-        providers: response.providers.map(p => ({
-          address: p.address,
-          amount: BigInt(p.amount)
-        })),
-        createdAt: new Date(response.createdAt),
-        updatedAt: new Date(response.updatedAt)
+        providers: new Map(
+          response.providers.map(p => [p.address, BigInt(p.amount)])
+        )
       };
     } catch (error) {
       this.error('Failed to get pool:', error);

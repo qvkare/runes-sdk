@@ -2,23 +2,23 @@
  * JSON-RPC 2.0 request object
  */
 export interface RPCRequest {
-  jsonrpc: '2.0';
-  id: number;
+  jsonrpc: string;
+  id: string | number;
   method: string;
-  params: any[];
+  params: unknown[];
 }
 
 /**
  * JSON-RPC 2.0 response
  */
 export interface RPCResponse {
-  jsonrpc: '2.0';
-  id: number;
-  result?: any;
-  error?: {
+  jsonrpc: string;
+  id: string | number;
+  result: Record<string, unknown>;
+  error: null | {
     code: number;
     message: string;
-    data?: any;
+    data?: unknown;
   };
 }
 
@@ -40,4 +40,16 @@ export interface RPCClientOptions {
    * Base delay between retries in milliseconds
    */
   retryDelay?: number;
+}
+
+export interface RPCConfig {
+  baseUrl: string;
+  auth?: {
+    username: string;
+    password: string;
+  };
+  timeout?: number;
+  maxRetries?: number;
+  retryDelay?: number;
+  network?: string;
 } 

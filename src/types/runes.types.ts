@@ -1,8 +1,8 @@
 /**
- * Basic type definitions
+ * Temel tip tanımlamaları
  */
 
-// Runes data structure
+// Runes veri yapısı
 export interface Runes {
   id: string;           
   symbol: string;       
@@ -17,7 +17,7 @@ export interface Runes {
   transferable: boolean;
 }
 
-// Runes balance information
+// Runes bakiye bilgisi
 export interface RunesBalance {
   address: string;      
   runes: string;        
@@ -25,7 +25,7 @@ export interface RunesBalance {
   lastUpdated: number;   
 }
 
-// Runes transfer details
+// Runes transfer detayları
 export interface RunesTransfer {
   txid: string;
   runes: string;
@@ -37,14 +37,14 @@ export interface RunesTransfer {
   status: 'pending' | 'confirmed' | 'failed';
 }
 
-// Runes operation types
+// Runes operasyon tipleri
 export enum RunesOperationType {
   TRANSFER = 'transfer',
   MINT = 'mint',
   BURN = 'burn'
 }
 
-// Runes operation details
+// Runes operasyon detayları
 export interface RunesOperation {
   type: RunesOperationType;
   runes: string;
@@ -53,14 +53,14 @@ export interface RunesOperation {
   to?: string;
 }
 
-// Validation result
+// Validasyon sonucu
 export interface RunesValidationResult {
   valid: boolean;
   operations: RunesOperation[];
   errors?: string[];
 }
 
-// Performance metrics
+// Performans metrikleri
 export interface PerformanceMetrics {
   averageResponseTime: number;
   successRate: number;
@@ -69,7 +69,7 @@ export interface PerformanceMetrics {
   activeConnections: number;
 }
 
-// Security configuration
+// Güvenlik yapılandırması
 export interface SecurityConfig {
   maxTransferAmount: bigint;
   minConfirmations: number;
@@ -81,14 +81,14 @@ export interface SecurityConfig {
   };
 }
 
-// Liquidity pool
+// Likidite havuzu
 export interface LiquidityPool {
   runeId: string;
   totalLiquidity: bigint;
   providers: Map<string, bigint>;
 }
 
-// Pool statistics
+// Havuz istatistikleri
 export interface PoolStats {
   totalVolume24h: bigint;
   totalTrades24h: number;
@@ -101,7 +101,7 @@ export interface PoolStats {
   providerCount: number;
 }
 
-// Market making configuration
+// Market making yapılandırması
 export interface MarketMakingConfig {
   spreadPercentage: number;
   maxOrderSize: bigint;
@@ -110,21 +110,21 @@ export interface MarketMakingConfig {
   maxPriceDeviation: number;
 }
 
-// Security check result
+// Güvenlik kontrolü sonucu
 export interface SecurityCheck {
   isValid: boolean;
   errors?: string[];
   warnings?: string[];
 }
 
-// Transfer risk
+// Transfer riski
 export interface TransferRisk {
   level: 'low' | 'medium' | 'high';
   factors: string[];
   recommendations: string[];
 }
 
-// Batch process result
+// Batch işlem sonucu
 export interface BatchProcessResult {
   totalTransfers: number;
   successfulTransfers: number;
@@ -135,7 +135,7 @@ export interface BatchProcessResult {
   }>;
 }
 
-// Runes transfer request
+// Runes transfer isteği
 export interface RunesTransferRequest {
   runes: string;
   amount: bigint;

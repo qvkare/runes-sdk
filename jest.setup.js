@@ -1,9 +1,9 @@
-// BigInt serileştirme desteği
+// BigInt serialization support
 BigInt.prototype.toJSON = function() {
   return this.toString();
 };
 
-// Jest ortamını yapılandır
+// Jest environment configuration
 expect.extend({
   toBeBigInt(received) {
     const pass = typeof received === 'bigint';

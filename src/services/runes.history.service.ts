@@ -1,12 +1,13 @@
 import { Logger } from '../utils/logger';
-import { RuneTransfer } from '../types';
+import { RunesTransfer } from '../types/runes.types';
 import { RPCClient } from '../utils/rpc.client';
 
-interface RuneHistory {
-  transfers: RuneTransfer[];
+interface RunesHistory {
+  transfers: RunesTransfer[];
   totalCount: number;
   startBlock: number;
   endBlock: number;
+  lastUpdated: number;
 }
 
 interface AddressHistory {
@@ -45,8 +46,8 @@ interface RPCTransfer {
   timestamp: number;
 }
 
-interface RPCRuneTransfer extends RPCTransfer {
-  rune: string;
+interface RPCRunesTransfer extends RPCTransfer {
+  runes: string;
   from: string;
   to: string;
   blockHeight: number;
@@ -61,18 +62,9 @@ interface RPCAddressHistory {
 /**
  * Service for managing Rune transfer history and analytics
  */
-export class RuneHistoryService {
-  private logger: Logger;
-  private rpcClient: RPCClient;
-
-  constructor() {
-    this.logger = new Logger('RuneHistoryService');
-    this.rpcClient = new RPCClient({
-      rpcUrl: 'http://localhost:8332',
-      username: 'test',
-      password: 'test',
-      network: 'regtest'
-    });
+export class RunesHistoryService extends Logger {
+  constructor(private readonly rpcClient: RPCClient) {
+    super('RunesHistoryService');
   }
 
   /**
@@ -96,8 +88,8 @@ export class RuneHistoryService {
         timestamp: tx.timestamp
       }));
 
-      const totalSent = sent.reduce((sum: bigint, tx: RPCTransfer) => sum + BigInt(tx.amount), BigInt(0)).toString();
-      const totalReceived = received.reduce((sum: bigint, tx: RPCTransfer) => sum + BigInt(tx.amount), BigInt(0)).toString();
+      const totalSent = sent.reduce((sum: bigint, tx) => sum + BigInt(tx.amount), BigInt(0)).toString();
+      const totalReceived = received.reduce((sum: bigint, tx) => sum + BigInt(tx.amount), BigInt(0)).toString();
 
       return {
         sent,
@@ -105,10 +97,11 @@ export class RuneHistoryService {
         totalSent,
         totalReceived,
         balance: (BigInt(totalReceived) - BigInt(totalSent)).toString(),
-        lastActivity: Math.max(...[...sent, ...received].map(tx => tx.timestamp)),
+        lastActivity: Math.max(...[...sent, ...received].map(tx => tx.timestamp), 0),
         transferCount: sent.length + received.length
       };
     } catch (error) {
+      this.error('Failed to get address history:', error);
       throw new Error(`Failed to get address history: ${error}`);
     }
   }
@@ -119,12 +112,13 @@ export class RuneHistoryService {
    * @param endTime End timestamp
    * @returns Transfer statistics including volumes and averages
    */
-  async getTransferStats(rune: string): Promise<TransferStats> {
+  async getTransferStats(runes: string): Promise<TransferStats> {
     try {
-      const transfers = await this._getTransfersByTimeRange(0, Date.now());
-      const runeTransfers = transfers.filter(t => t.rune === rune);
-
-      if (runeTransfers.length === 0) {
+      const startTime = 0;
+      const endTime = Date.now();
+      const transfers = await this._getTransfersByTimeRange(runes, startTime, endTime);
+      
+      if (transfers.length === 0) {
         return {
           totalTransfers: 0,
           totalVolume: '0',
@@ -132,31 +126,32 @@ export class RuneHistoryService {
           largestAmount: '0',
           smallestAmount: '0',
           timeRange: {
-            start: 0,
-            end: Date.now()
+            start: startTime,
+            end: endTime
           }
         };
       }
 
-      const amounts = runeTransfers.map(t => BigInt(t.amount));
+      const amounts = transfers.map(t => BigInt(t.amount));
       const totalVolume = amounts.reduce((a, b) => a + b, BigInt(0));
-      const averageAmount = totalVolume / BigInt(runeTransfers.length);
+      const averageAmount = totalVolume / BigInt(transfers.length);
       const largestAmount = amounts.reduce((a, b) => a > b ? a : b);
       const smallestAmount = amounts.reduce((a, b) => a < b ? a : b);
 
       return {
-        totalTransfers: runeTransfers.length,
+        totalTransfers: transfers.length,
         totalVolume: totalVolume.toString(),
         averageAmount: averageAmount.toString(),
         largestAmount: largestAmount.toString(),
         smallestAmount: smallestAmount.toString(),
         timeRange: {
-          start: 0,
-          end: Date.now()
+          start: startTime,
+          end: endTime
         }
       };
     } catch (error) {
-      throw new Error(`Failed to get transfer stats: ${error}`);
+      this.error('Failed to get transfer stats:', error);
+      throw new Error('Failed to get transfer stats');
     }
   }
 
@@ -166,48 +161,57 @@ export class RuneHistoryService {
    * @param endTime End timestamp
    * @returns Array of transfers
    */
-  private async _getTransfersByTimeRange(startTime: number, endTime: number): Promise<RuneTransfer[]> {
+  private async _getTransfersByTimeRange(runes: string, startTime: number, endTime: number): Promise<RunesTransfer[]> {
     try {
-      const response = await this.rpcClient.call<RPCRuneTransfer[]>('gettransfers', [startTime, endTime]);
-
-      return response.map((item: RPCRuneTransfer) => ({
-        txid: item.txid,
-        rune: item.rune,
-        amount: item.amount,
-        from: item.from,
-        to: item.to,
-        timestamp: item.timestamp,
-        blockHeight: item.blockHeight,
-        status: item.status as 'pending' | 'confirmed' | 'failed'
+      const response = await this.rpcClient.call<RPCRunesTransfer[]>('gettransfersbyrange', [runes, startTime, endTime]);
+      return response.map(transfer => ({
+        txid: transfer.txid,
+        runes: transfer.runes,
+        from: transfer.from,
+        to: transfer.to,
+        amount: transfer.amount,
+        timestamp: transfer.timestamp,
+        blockHeight: transfer.blockHeight,
+        status: transfer.status as 'confirmed' | 'pending' | 'failed'
       }));
     } catch (error) {
-      this.logger.error('Failed to get transfers by time range:', error);
+      this.error('Failed to get transfers by time range:', error);
       throw error;
     }
   }
 
-  async getRuneHistory(rune: string, startBlock: number, endBlock: number): Promise<RuneHistory> {
+  async getRunesHistory(runes: string, startBlock: number, endBlock: number): Promise<RunesHistory> {
     try {
-      const response = await this.rpcClient.call<RPCRuneTransfer[]>('getrune', [rune, startBlock, endBlock]);
-      const transfers = response.map((tx: RPCRuneTransfer) => ({
-        txid: tx.txid,
-        rune: tx.rune,
-        amount: tx.amount,
-        from: tx.from,
-        to: tx.to,
-        timestamp: tx.timestamp,
-        blockHeight: tx.blockHeight,
-        status: tx.status as 'pending' | 'confirmed' | 'failed'
-      }));
-
+      const transfers = await this._getTransfersByBlockRange(runes, startBlock, endBlock);
       return {
         transfers,
         totalCount: transfers.length,
         startBlock,
-        endBlock
+        endBlock,
+        lastUpdated: Date.now()
       };
     } catch (error) {
-      throw new Error(`Failed to get rune history: ${error}`);
+      this.error('Failed to get runes history:', error);
+      throw new Error('Failed to get runes history');
+    }
+  }
+
+  private async _getTransfersByBlockRange(runes: string, startBlock: number, endBlock: number): Promise<RunesTransfer[]> {
+    try {
+      const response = await this.rpcClient.call<RPCRunesTransfer[]>('gettransfers', [runes, startBlock, endBlock]);
+      return response.map(transfer => ({
+        txid: transfer.txid,
+        runes: transfer.runes,
+        from: transfer.from,
+        to: transfer.to,
+        amount: transfer.amount,
+        timestamp: transfer.timestamp,
+        blockHeight: transfer.blockHeight,
+        status: transfer.status as 'confirmed' | 'pending' | 'failed'
+      }));
+    } catch (error) {
+      this.error('Failed to get transfers by block range:', error);
+      throw error;
     }
   }
 } 

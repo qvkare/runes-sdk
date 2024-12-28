@@ -1,5 +1,5 @@
 import { Logger } from '../utils/logger';
-import { RuneTransfer } from '../types';
+import { RunesTransfer } from '../types/runes.types';
 
 interface SecurityConfig {
   maxTransferAmount: number;
@@ -23,12 +23,12 @@ interface TransferRisk {
 /**
  * Service for handling security related operations for Rune transactions
  */
-export class RuneSecurityService {
-  private logger: Logger;
-  private config: SecurityConfig;
+export class RunesSecurityService {
+  private readonly logger: Logger;
+  private readonly config: SecurityConfig;
 
   constructor(config: Partial<SecurityConfig> = {}) {
-    this.logger = new Logger('RuneSecurityService');
+    this.logger = new Logger('RunesSecurityService');
     this.config = {
       maxTransferAmount: config.maxTransferAmount || 1000000,
       maxBlockUsage: config.maxBlockUsage || 0.75,
@@ -42,7 +42,7 @@ export class RuneSecurityService {
    * @param transfer The transfer request to validate
    * @returns Validation result with status and any errors/warnings
    */
-  async validateTransfer(transfer: RuneTransfer): Promise<SecurityCheck> {
+  async validateTransfer(transfer: RunesTransfer): Promise<SecurityCheck> {
     const errors: string[] = [];
     const warnings: string[] = [];
 

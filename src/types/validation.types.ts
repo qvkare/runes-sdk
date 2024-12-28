@@ -1,4 +1,4 @@
-export interface RuneValidationResult {
+export interface RunesValidationResult {
   isValid: boolean;
   errors: string[];
 } 
