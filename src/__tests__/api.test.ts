@@ -97,7 +97,7 @@ describe('APIService', () => {
         signal: mockSignal
       };
 
-      // @ts-ignore - Mock implementation
+      // @ts-expect-error - Mock implementation
       global.AbortController = jest.fn(() => mockController);
       
       // Mock fetch to simulate a timeout
