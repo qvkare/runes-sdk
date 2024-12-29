@@ -1,90 +1,125 @@
 import { RunesBatchService } from '../runes.batch.service';
+import { Logger } from '../../utils/logger';
 import { RPCClient } from '../../utils/rpc.client';
-import { jest } from '@jest/globals';
+import { createMockLogger, createMockRpcClient } from '../../utils/__tests__/test.utils';
+import { RunesValidator } from '../../utils/runes.validator';
 
-jest.mock('../../utils/rpc.client');
+interface Transfer {
+  runeId: string;
+  amount: string;
+  fromAddress: string;
+  toAddress: string;
+}
 
 describe('RunesBatchService', () => {
   let batchService: RunesBatchService;
   let mockRpcClient: jest.Mocked<RPCClient>;
+  let mockLogger: jest.Mocked<Logger>;
+  let mockValidator: jest.Mocked<RunesValidator>;
 
   beforeEach(() => {
-    mockRpcClient = new RPCClient({
-      baseUrl: 'http://localhost:8332',
-    }) as jest.Mocked<RPCClient>;
-    batchService = new RunesBatchService(mockRpcClient);
+    mockLogger = createMockLogger('RunesBatchService');
+    mockRpcClient = createMockRpcClient(mockLogger);
+    mockValidator = {
+      validateTransfer: jest.fn(),
+      validateTransaction: jest.fn(),
+      validateAddress: jest.fn(),
+      validateRuneId: jest.fn(),
+      isValidAmount: jest.fn(),
+      logger: mockLogger,
+      rpcClient: mockRpcClient
+    } as unknown as jest.Mocked<RunesValidator>;
+    batchService = new RunesBatchService(mockRpcClient, mockLogger, mockValidator);
   });
 
-  describe('processBatch', () => {
-    it('should process a batch of transfers', async () => {
+  describe('submitBatch', () => {
+    const transfers: Transfer[] = [
+      {
+        runeId: 'rune123',
+        amount: '100',
+        fromAddress: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+        toAddress: '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX'
+      },
+      {
+        runeId: 'rune456',
+        amount: '200',
+        fromAddress: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+        toAddress: '1HLoD9E4SDFFPDiYfNYnkBLQ85Y51J3Zb1'
+      }
+    ];
+
+    it('should submit batch successfully', async () => {
+      mockValidator.validateTransfer.mockResolvedValue({
+        isValid: true,
+        errors: [],
+        warnings: []
+      });
+
       const mockResponse = {
-        batchId: 'batch1',
-        status: 'completed',
-        processedCount: 2,
-        failedCount: 0,
+        result: {
+          batchId: 'batch123',
+          status: 'submitted',
+          timestamp: '2024-01-01T00:00:00Z'
+        }
       };
 
-      mockRpcClient.call.mockResolvedValue(mockResponse);
+      mockRpcClient.call.mockResolvedValueOnce(mockResponse);
 
-      const transfers = [
-        {
-          runesId: 'rune1',
-          from: 'addr1',
-          to: 'addr2',
-          amount: BigInt(1000),
-        },
-        {
-          runesId: 'rune1',
-          from: 'addr2',
-          to: 'addr3',
-          amount: BigInt(2000),
-        },
-      ];
-
-      const result = await batchService.processBatch(transfers);
-
-      expect(result).toEqual(mockResponse);
-      expect(mockRpcClient.call).toHaveBeenCalledWith('processbatch', [transfers]);
+      const result = await batchService.submitBatch(transfers);
+      expect(result).toEqual(mockResponse.result);
+      expect(mockValidator.validateTransfer).toHaveBeenCalledTimes(2);
+      expect(mockRpcClient.call).toHaveBeenCalledWith('submitbatch', [transfers]);
     });
 
-    it('should handle batch processing errors', async () => {
-      mockRpcClient.call.mockRejectedValue(new Error('Failed to process batch'));
+    it('should handle validation errors', async () => {
+      mockValidator.validateTransfer.mockResolvedValue({
+        isValid: false,
+        errors: ['Invalid amount'],
+        warnings: []
+      });
 
-      const transfers = [
-        {
-          runesId: 'rune1',
-          from: 'addr1',
-          to: 'addr2',
-          amount: BigInt(1000),
-        },
-      ];
+      await expect(batchService.submitBatch(transfers)).rejects.toThrow('Invalid amount');
+      expect(mockRpcClient.call).not.toHaveBeenCalled();
+    });
 
-      await expect(batchService.processBatch(transfers)).rejects.toThrow('Failed to process batch');
+    it('should handle RPC errors', async () => {
+      mockValidator.validateTransfer.mockResolvedValue({
+        isValid: true,
+        errors: [],
+        warnings: []
+      });
+
+      mockRpcClient.call.mockRejectedValueOnce(new Error('RPC error'));
+
+      await expect(batchService.submitBatch(transfers)).rejects.toThrow('Failed to submit batch');
+      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 
   describe('getBatchStatus', () => {
-    it('should get batch status', async () => {
+    it('should get batch status successfully', async () => {
+      const batchId = 'batch123';
       const mockResponse = {
-        batchId: 'batch1',
-        status: 'completed',
-        processedCount: 2,
-        failedCount: 0,
-        completedAt: '2023-01-01T00:00:00Z',
+        result: {
+          batchId: 'batch123',
+          status: 'completed',
+          timestamp: '2024-01-01T00:00:00Z'
+        }
       };
 
-      mockRpcClient.call.mockResolvedValue(mockResponse);
+      mockRpcClient.call.mockResolvedValueOnce(mockResponse);
 
-      const result = await batchService.getBatchStatus('batch1');
-
-      expect(result).toEqual(mockResponse);
-      expect(mockRpcClient.call).toHaveBeenCalledWith('getbatchstatus', ['batch1']);
+      const result = await batchService.getBatchStatus(batchId);
+      expect(result).toEqual(mockResponse.result);
+      expect(mockRpcClient.call).toHaveBeenCalledWith('getbatchstatus', [batchId]);
     });
 
-    it('should handle batch status errors', async () => {
-      mockRpcClient.call.mockRejectedValue(new Error('Failed to get batch status'));
+    it('should handle RPC errors', async () => {
+      const batchId = 'invalid_batch';
+      mockRpcClient.call.mockRejectedValueOnce(new Error('RPC error'));
 
-      await expect(batchService.getBatchStatus('batch1')).rejects.toThrow('Failed to get batch status');
+      await expect(batchService.getBatchStatus(batchId)).rejects.toThrow('Failed to get batch status');
+      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 }); 

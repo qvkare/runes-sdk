@@ -1,176 +1,218 @@
 import { RPCClient } from '../rpc.client';
-import { RPCError, RPCTimeoutError, RPCRetryError, RPCResponseError } from '../errors';
-import { BitcoinConfig } from '../../config/bitcoin.config';
+import { Logger } from '../logger';
+import { createMockLogger } from './test.utils';
 
 describe('RPCClient', () => {
+  let mockLogger: jest.Mocked<Logger>;
+  let mockFetch: jest.Mock;
+  let originalFetch: typeof global.fetch;
   let client: RPCClient;
-  const mockConfig: BitcoinConfig = {
-    rpcUrl: 'http://localhost:8332',
-    network: 'regtest',
-    username: 'test',
-    password: 'test'
-  };
 
   beforeEach(() => {
-    client = new RPCClient(mockConfig, {
+    mockLogger = createMockLogger('RPCClient');
+    mockFetch = jest.fn();
+    originalFetch = global.fetch;
+    global.fetch = mockFetch;
+    client = new RPCClient('http://localhost:8332', { 
+      logger: mockLogger,
       timeout: 100,
       maxRetries: 2,
       retryDelay: 10
     });
-    jest.clearAllMocks();
-    jest.useRealTimers();
   });
 
   afterEach(() => {
+    jest.clearAllMocks();
+    global.fetch = originalFetch;
     jest.useRealTimers();
   });
 
   describe('constructor', () => {
-    it('should initialize with default options', () => {
-      const client = new RPCClient(mockConfig);
-      expect(client).toBeInstanceOf(RPCClient);
+    it('should create instance with default values', (): void => {
+      const client = new RPCClient('http://localhost:8332', { logger: mockLogger });
+      expect(client.baseUrl).toBe('http://localhost:8332');
+      expect(client['logger']).toBe(mockLogger);
     });
 
-    it('should initialize with custom options', () => {
-      const client = new RPCClient(mockConfig, {
-        timeout: 5000,
-        maxRetries: 2,
-        retryDelay: 500
-      });
-      expect(client).toBeInstanceOf(RPCClient);
+    it('should create instance with custom values', (): void => {
+      const client = new RPCClient(
+        'http://localhost:8332',
+        {
+          logger: mockLogger,
+          timeout: 1000,
+          maxRetries: 5,
+          retryDelay: 2000
+        }
+      );
+      expect(client.baseUrl).toBe('http://localhost:8332');
+      expect(client['logger']).toBe(mockLogger);
+    });
+
+    it('should use default values when not provided', (): void => {
+      const client = new RPCClient('http://localhost:8332', { logger: mockLogger });
+      expect(client.baseUrl).toBe('http://localhost:8332');
+      expect(client['timeout']).toBe(5000);
+      expect(client['maxRetries']).toBe(3);
+      expect(client['retryDelay']).toBe(1000);
+    });
+
+    it('should use provided values', (): void => {
+      const client = new RPCClient(
+        'http://localhost:8332',
+        {
+          logger: mockLogger,
+          timeout: 10000,
+          maxRetries: 5,
+          retryDelay: 2000
+        }
+      );
+      expect(client.baseUrl).toBe('http://localhost:8332');
+      expect(client['timeout']).toBe(10000);
+      expect(client['maxRetries']).toBe(5);
+      expect(client['retryDelay']).toBe(2000);
     });
   });
 
   describe('call', () => {
-    it('should make successful RPC call', async () => {
-      const mockResponse = { result: 'success' };
-      global.fetch = jest.fn().mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ jsonrpc: '2.0', id: 1, result: mockResponse })
-      });
+    it('should retry on failure and succeed', async (): Promise<void> => {
+      const error = new Error('Network error');
+      mockFetch
+        .mockRejectedValueOnce(error)
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ result: 'success' })
+        });
 
       const result = await client.call('test');
-      expect(result).toEqual(mockResponse);
+      expect(result).toEqual({ result: 'success' });
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockLogger.warn).toHaveBeenCalledTimes(1);
     });
 
-    it('should handle RPC errors', async () => {
-      global.fetch = jest.fn().mockResolvedValueOnce({
+    it('should handle RPC error response', async (): Promise<void> => {
+      const mockResponse = {
         ok: true,
-        json: async () => ({
-          jsonrpc: '2.0',
-          id: 1,
-          error: { code: -32601, message: 'Method not found' }
+        status: 200,
+        json: () => Promise.resolve({
+          error: { message: 'RPC error message' }
         })
-      });
+      };
+      mockFetch.mockImplementation(() => Promise.resolve(mockResponse));
 
-      await expect(client.call('invalid')).rejects.toThrow(RPCError);
+      await expect(client.call('test')).rejects.toThrow('RPC error message');
+      expect(mockLogger.error).not.toHaveBeenCalled();
     });
 
-    it('should handle HTTP errors', async () => {
-      global.fetch = jest.fn().mockResolvedValueOnce({
+    it('should handle network error with custom message', async (): Promise<void> => {
+      const error = new Error('Custom network error');
+      mockFetch.mockImplementation(() => Promise.reject(error));
+
+      await expect(client.call('test')).rejects.toThrow('Network error: Custom network error');
+    });
+
+    it('should handle unknown error type', async (): Promise<void> => {
+      mockFetch.mockImplementation(() => Promise.reject('Unknown error type'));
+
+      await expect(client.call('test')).rejects.toThrow('Network error: Unknown error');
+    });
+
+    it('should handle timeout', async (): Promise<void> => {
+      const abortError = new Error('The operation was aborted');
+      abortError.name = 'AbortError';
+      mockFetch.mockImplementation(() => Promise.reject(abortError));
+
+      await expect(client.call('test')).rejects.toThrow('Request timed out');
+    });
+
+    it('should handle empty params array', async (): Promise<void> => {
+      mockFetch.mockImplementation(() => Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ result: 'success' })
+      }));
+
+      await client.call('test');
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8332',
+        expect.objectContaining({
+          body: expect.stringContaining('"params":[]')
+        })
+      );
+    });
+
+    it('should include request ID in payload', async (): Promise<void> => {
+      const now = Date.now();
+      jest.spyOn(Date, 'now').mockReturnValue(now);
+
+      mockFetch.mockImplementation(() => Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ result: 'success' })
+      }));
+
+      await client.call('test');
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8332',
+        expect.objectContaining({
+          body: expect.stringContaining(`"id":${now}`)
+        })
+      );
+
+      jest.restoreAllMocks();
+    });
+
+    it('should handle JSON parse error', async (): Promise<void> => {
+      mockFetch.mockImplementation(() => Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.reject(new Error('Invalid JSON'))
+      }));
+
+      await expect(client.call('test')).rejects.toThrow('Invalid JSON response');
+    });
+
+    it('should exhaust all retries and throw last error', async (): Promise<void> => {
+      const error = new Error('Persistent error');
+      mockFetch
+        .mockImplementationOnce(() => Promise.reject(error))
+        .mockImplementationOnce(() => Promise.reject(error));
+
+      await expect(client.call('test')).rejects.toThrow('Network error: Persistent error');
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockLogger.warn).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle undefined error response', async (): Promise<void> => {
+      mockFetch.mockImplementation(() => Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({
+          error: undefined,
+          result: 'success'
+        })
+      }));
+
+      const result = await client.call('test');
+      expect(result).toEqual({
+        error: undefined,
+        result: 'success'
+      });
+    });
+
+    it('should handle HTTP error', async (): Promise<void> => {
+      mockFetch.mockImplementation(() => Promise.resolve({
         ok: false,
-        status: 404,
-        json: async () => ({})
-      });
+        status: 500
+      }));
 
-      await expect(client.call('test')).rejects.toThrow('HTTP error! status: 404');
+      await expect(client.call('test')).rejects.toThrow('HTTP error! status: 500');
     });
 
-    it('should handle timeouts', async () => {
-      const mockAbort = jest.fn();
-      const mockController = { abort: mockAbort, signal: { aborted: false } };
-      global.AbortController = jest.fn(() => mockController);
-      global.fetch = jest.fn().mockImplementationOnce(() => {
-        mockAbort();
-        const error = new Error('AbortError');
-        error.name = 'AbortError';
-        throw error;
-      });
+    it('should handle no response', async (): Promise<void> => {
+      mockFetch.mockImplementation(() => Promise.resolve(undefined));
 
-      await expect(client.call('test')).rejects.toThrow(RPCTimeoutError);
-      expect(mockAbort).toHaveBeenCalled();
-    });
-
-    it('should handle invalid JSON responses', async () => {
-      global.fetch = jest.fn().mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ jsonrpc: '2.0', id: 1 }) // Missing result and error
-      });
-
-      await expect(client.call('test')).rejects.toThrow(RPCResponseError);
-    });
-
-    it('should retry on specific errors', async () => {
-      global.fetch = jest.fn()
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            jsonrpc: '2.0',
-            id: 1,
-            error: { code: -28, message: 'Loading block index' }
-          })
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ jsonrpc: '2.0', id: 2, result: 'success' })
-        });
-
-      const result = await client.call('test');
-      expect(result).toBe('success');
-      expect(global.fetch).toHaveBeenCalledTimes(2);
-    });
-
-    it('should throw after max retries', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          jsonrpc: '2.0',
-          id: 1,
-          error: { code: -28, message: 'Loading block index' }
-        })
-      });
-
-      await expect(client.call('test')).rejects.toThrow(RPCRetryError);
-      expect(global.fetch).toHaveBeenCalledTimes(2);
-    });
-
-    it('should handle network errors', async () => {
-      global.fetch = jest.fn().mockRejectedValueOnce(new Error('Network error'));
-
-      await expect(client.call('test')).rejects.toThrow('Network error');
-    });
-
-    it('should handle JSON parse errors', async () => {
-      global.fetch = jest.fn().mockResolvedValueOnce({
-        ok: true,
-        json: async () => { throw new Error('Invalid JSON'); }
-      });
-
-      await expect(client.call('test')).rejects.toThrow('Invalid JSON');
-    });
-
-    it('should handle warmup errors', async () => {
-      global.fetch = jest.fn()
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            jsonrpc: '2.0',
-            id: 1,
-            error: { code: -8, message: 'Server in warmup' }
-          })
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            jsonrpc: '2.0',
-            id: 2,
-            result: 'success'
-          })
-        });
-
-      const result = await client.call('test');
-      expect(result).toBe('success');
-      expect(global.fetch).toHaveBeenCalledTimes(2);
+      await expect(client.call('test')).rejects.toThrow('No response received');
     });
   });
 }); 

@@ -1,62 +1,42 @@
 import { RPCClient } from '../utils/rpc.client';
 import { Logger } from '../utils/logger';
+import { LiquidityPool } from '../types';
 
-interface LiquidityPool {
-  id: string;
-  runes: string;
-  totalLiquidity: bigint;
-  providers: Map<string, bigint>;
-}
+export class RunesLiquidityService {
+  constructor(
+    private readonly rpcClient: RPCClient,
+    private readonly logger: Logger
+  ) {}
 
-interface PoolResponse {
-  id: string;
-  runes: string;
-  totalLiquidity: string;
-  providers: Array<{
-    address: string;
-    amount: string;
-  }>;
-}
-
-export class RunesLiquidityService extends Logger {
-  constructor(private readonly rpcClient: RPCClient) {
-    super('RunesLiquidityService');
-  }
-
-  async getPool(poolId: string): Promise<LiquidityPool> {
+  async getPoolInfo(runeId: string): Promise<LiquidityPool> {
     try {
-      const response = await this.rpcClient.call<PoolResponse>('getpool', [poolId]);
-      return {
-        id: response.id,
-        runes: response.runes,
-        totalLiquidity: BigInt(response.totalLiquidity),
-        providers: new Map(
-          response.providers.map(p => [p.address, BigInt(p.amount)])
-        )
-      };
+      this.logger.info('Getting liquidity pool info for rune:', runeId);
+      const response = await this.rpcClient.call<LiquidityPool>('getpoolinfo', [runeId]);
+
+      if (!response.result) {
+        throw new Error('Invalid response from RPC');
+      }
+
+      return response.result;
     } catch (error) {
-      this.error('Failed to get pool:', error);
-      throw error;
+      this.logger.error('Failed to get pool info:', error);
+      throw new Error('Failed to get pool info');
     }
   }
 
-  async addLiquidity(poolId: string, amount: bigint, address: string): Promise<boolean> {
+  async addLiquidity(runeId: string, amount: string): Promise<{ txId: string }> {
     try {
-      const result = await this.rpcClient.call('addliquidity', [poolId, amount.toString(), address]);
-      return result === true;
-    } catch (error) {
-      this.error('Failed to add liquidity:', error);
-      throw error;
-    }
-  }
+      this.logger.info('Adding liquidity to pool:', { runeId, amount });
+      const response = await this.rpcClient.call<{ txId: string }>('addliquidity', [runeId, amount]);
 
-  async removeLiquidity(poolId: string, amount: bigint, address: string): Promise<boolean> {
-    try {
-      const result = await this.rpcClient.call('removeliquidity', [poolId, amount.toString(), address]);
-      return result === true;
+      if (!response.result) {
+        throw new Error('Invalid response from RPC');
+      }
+
+      return response.result;
     } catch (error) {
-      this.error('Failed to remove liquidity:', error);
-      throw error;
+      this.logger.error('Failed to add liquidity:', error);
+      throw new Error('Failed to add liquidity');
     }
   }
 } 

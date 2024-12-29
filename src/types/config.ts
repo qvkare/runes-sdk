@@ -1,8 +1,16 @@
+import { Logger } from '../utils/logger';
+
 export interface SDKConfig {
   ordServer: string;
-  network: 'mainnet' | 'testnet';
-  timeout?: number;
   retryAttempts?: number;
+  timeout?: number;
+  logger?: Logger;
+  network?: string;
+  apiKey?: string;
+  apiSecret?: string;
+  maxConcurrentRequests?: number;
+  cacheEnabled?: boolean;
+  cacheTTL?: number;
 }
 
 export interface PaginationOptions {

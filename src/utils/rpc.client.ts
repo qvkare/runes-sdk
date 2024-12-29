@@ -1,91 +1,112 @@
 import { Logger } from './logger';
-import { RPCConfig, RPCRequest, RPCResponse } from './rpc.types';
-import { RPCError } from './errors';
+import { RPCResponse } from '../types';
 
-export class RPCClient extends Logger {
-  private config: RPCConfig;
+interface RPCClientConfig {
+  logger: Logger;
+  timeout?: number;
+  maxRetries?: number;
+  retryDelay?: number;
+}
 
-  constructor(config: RPCConfig) {
-    super('RPCClient');
-    this.config = {
-      timeout: 30000,
-      maxRetries: 3,
-      retryDelay: 1000,
-      ...config,
-    };
+export class RPCClient {
+  private readonly timeout: number;
+  private readonly maxRetries: number;
+  private readonly retryDelay: number;
+  private readonly logger: Logger;
+
+  constructor(
+    public readonly baseUrl: string,
+    config: RPCClientConfig
+  ) {
+    this.logger = config.logger;
+    this.timeout = config.timeout || 5000;
+    this.maxRetries = config.maxRetries || 3;
+    this.retryDelay = config.retryDelay || 1000;
   }
 
-  private async makeRequest(request: RPCRequest): Promise<RPCResponse> {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
+  async call<T>(method: string, params: unknown[] = []): Promise<RPCResponse<T>> {
+    let lastError: Error | undefined;
+    
+    for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+      try {
+        this.logger.info(`Making RPC call to ${method}`, { attempt, params });
+        const response = await this.makeRequest<T>(method, params);
+        
+        if (response.error) {
+          throw new Error(response.error.message);
+        }
+        
+        return response;
+      } catch (error) {
+        lastError = error as Error;
+        if (attempt < this.maxRetries) {
+          this.logger.warn(`RPC call failed, retrying...`, { attempt, error });
+          await this.delay(this.retryDelay);
+        }
+      }
+    }
+    
+    throw lastError || new Error('RPC call failed');
+  }
+
+  private async makeRequest<T>(method: string, params: unknown[]): Promise<RPCResponse<T>> {
+    const requestBody = {
+      jsonrpc: '2.0',
+      id: Date.now(),
+      method,
+      params
     };
 
-    if (this.config.auth) {
-      const authString = Buffer.from(
-        `${this.config.auth.username}:${this.config.auth.password}`
-      ).toString('base64');
-      headers['Authorization'] = `Basic ${authString}`;
-    }
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
     try {
-      const response = await fetch(this.config.baseUrl, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(request),
-        signal: AbortSignal.timeout(this.config.timeout || 30000),
-      });
+      let response;
+      try {
+        response = await fetch(this.baseUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestBody),
+          signal: controller.signal
+        });
+      } catch (error) {
+        if (error instanceof Error) {
+          if (error.name === 'AbortError') {
+            throw new Error('Request timed out');
+          }
+          throw new Error(`Network error: ${error.message}`);
+        }
+        throw new Error('Network error: Unknown error');
+      }
+
+      if (!response) {
+        throw new Error('No response received');
+      }
 
       if (!response.ok) {
-        throw new RPCError(`HTTP error: ${response.status} ${response.statusText}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      return await response.json() as RPCResponse;
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new RPCError(`Network error: ${error.message}`);
+      let data;
+      try {
+        data = await response.json();
+      } catch (error) {
+        throw new Error('Invalid JSON response');
       }
-      throw new RPCError('Unknown error occurred');
+      
+      if (data.error) {
+        throw new Error(data.error.message);
+      }
+
+      return data;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
-  async call(method: string, params: unknown[] = []): Promise<Record<string, unknown>> {
-    let retries = 0;
-    const maxRetries = this.config.maxRetries || 3;
-    const retryDelay = this.config.retryDelay || 1000;
-
-    do {
-      try {
-        const request: RPCRequest = {
-          jsonrpc: '2.0',
-          method,
-          params,
-          id: Date.now(),
-        };
-
-        const response = await this.makeRequest(request);
-
-        if (response.error) {
-          throw new RPCError(
-            `RPC error ${response.error.code}: ${response.error.message}`,
-            response.error.code,
-            response.error.data
-          );
-        }
-
-        return response.result;
-      } catch (error) {
-        if (retries >= maxRetries) {
-          if (error instanceof Error) {
-            throw new RPCError(`Max retries reached: ${error.message}`);
-          }
-          throw new RPCError('Max retries reached with unknown error');
-        }
-
-        retries++;
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-      }
-    } while (retries <= maxRetries);
-
-    throw new RPCError('Max retries reached');
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 } 

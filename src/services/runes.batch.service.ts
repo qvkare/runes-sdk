@@ -1,129 +1,61 @@
-import { RunesService } from './runes.service';
-import { RunesTransfer } from '../types/runes.types';
+import { RPCClient } from '../utils/rpc.client';
 import { Logger } from '../utils/logger';
+import { RunesValidator } from '../utils/runes.validator';
+import { BatchSubmissionResult } from '../types';
 
-interface BatchServiceOptions {
-  maxBatchSize?: number;
-  maxRetries?: number;
-  retryDelay?: number;
+interface Transfer {
+  runeId: string;
+  amount: string;
+  fromAddress: string;
+  toAddress: string;
 }
 
-interface BatchResult {
-  successful: RunesTransfer[];
-  failed: RunesTransfer[];
-  totalProcessed: number;
-  successRate: number;
-}
+export class RunesBatchService {
+  constructor(
+    private readonly rpcClient: RPCClient,
+    private readonly logger: Logger,
+    private readonly validator: RunesValidator
+  ) {}
 
-export class RunesBatchService extends Logger {
-  private readonly runesService: RunesService;
-  private readonly maxBatchSize: number;
-  private readonly maxRetries: number;
-  private readonly retryDelay: number;
+  async submitBatch(transfers: Transfer[]): Promise<BatchSubmissionResult> {
+    this.logger.info('Validating batch transfers:', transfers);
 
-  constructor(runesService: RunesService, options?: BatchServiceOptions) {
-    super('RunesBatchService');
-    this.runesService = runesService;
-    this.maxBatchSize = options?.maxBatchSize || 100;
-    this.maxRetries = options?.maxRetries || 3;
-    this.retryDelay = options?.retryDelay || 1000;
-  }
-
-  async processBatch(transfers: RunesTransfer[]): Promise<BatchResult> {
-    if (!transfers.length) {
-      return {
-        successful: [],
-        failed: [],
-        totalProcessed: 0,
-        successRate: 0
-      };
-    }
-
-    const batches = this.splitIntoBatches(transfers);
-    const results = await Promise.all(
-      batches.map(batch => this.processBatchWithRetry(batch))
-    );
-
-    const successful = results.flatMap(r => r.successful);
-    const failed = results.flatMap(r => r.failed);
-    const totalProcessed = successful.length + failed.length;
-    const successRate = totalProcessed > 0 ? successful.length / totalProcessed : 0;
-
-    return {
-      successful,
-      failed,
-      totalProcessed,
-      successRate
-    };
-  }
-
-  private splitIntoBatches(transfers: RunesTransfer[]): RunesTransfer[][] {
-    const batches: RunesTransfer[][] = [];
-    for (let i = 0; i < transfers.length; i += this.maxBatchSize) {
-      batches.push(transfers.slice(i, i + this.maxBatchSize));
-    }
-    return batches;
-  }
-
-  private async processBatchWithRetry(batch: RunesTransfer[]): Promise<BatchResult> {
-    let retries = 0;
-    let lastError: Error | null = null;
-
-    while (retries < this.maxRetries) {
-      try {
-        return await this.processOneBatch(batch);
-      } catch (error) {
-        lastError = error as Error;
-        retries++;
-        if (retries < this.maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, this.retryDelay));
-        }
+    for (const transfer of transfers) {
+      const validationResult = await this.validator.validateTransfer(transfer);
+      if (!validationResult.isValid) {
+        this.logger.warn('Transfer validation failed:', validationResult.errors);
+        throw new Error(validationResult.errors[0]);
       }
     }
 
-    this.error(`Failed to process batch after ${this.maxRetries} retries:`, lastError);
-    return {
-      successful: [],
-      failed: batch,
-      totalProcessed: batch.length,
-      successRate: 0
-    };
+    try {
+      this.logger.info('Submitting batch:', transfers);
+      const response = await this.rpcClient.call<BatchSubmissionResult>('submitbatch', [transfers]);
+
+      if (!response.result) {
+        throw new Error('Invalid response from RPC');
+      }
+
+      return response.result;
+    } catch (error) {
+      this.logger.error('Failed to submit batch:', error);
+      throw new Error('Failed to submit batch');
+    }
   }
 
-  private async processOneBatch(batch: RunesTransfer[]): Promise<BatchResult> {
-    const successful: RunesTransfer[] = [];
-    const failed: RunesTransfer[] = [];
+  async getBatchStatus(batchId: string): Promise<BatchSubmissionResult> {
+    try {
+      this.logger.info('Getting batch status:', batchId);
+      const response = await this.rpcClient.call<BatchSubmissionResult>('getbatchstatus', [batchId]);
 
-    await Promise.all(
-      batch.map(async transfer => {
-        try {
-          const validationResult = await this.runesService.validateTransfer(
-            transfer.from,
-            transfer.to,
-            BigInt(transfer.amount)
-          );
-          
-          if (validationResult.isValid) {
-            successful.push(transfer);
-          } else {
-            this.error(`Validation failed for transfer ${transfer.txid}:`, validationResult.errors);
-            failed.push(transfer);
-          }
-        } catch (error) {
-          this.error(`Failed to process transfer ${transfer.txid}:`, error);
-          failed.push(transfer);
-        }
-      })
-    );
+      if (!response.result) {
+        throw new Error('Invalid response from RPC');
+      }
 
-    const totalProcessed = successful.length + failed.length;
-    const successRate = totalProcessed > 0 ? successful.length / totalProcessed : 0;
-
-    return {
-      successful,
-      failed,
-      totalProcessed,
-      successRate
-    };
+      return response.result;
+    } catch (error) {
+      this.logger.error('Failed to get batch status:', error);
+      throw new Error('Failed to get batch status');
+    }
   }
 } 

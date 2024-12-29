@@ -1,4 +1,5 @@
-import { SDKConfig, RuneInfo, RuneBalance, RuneTransaction, RuneStats, ValidationResult, SearchResult, PaginatedResponse, SearchOptions, PaginationOptions } from '../types';
+import { SDKConfig } from '../types/config';
+import { RuneInfo, RuneBalance, RuneTransaction, RuneStats, ValidationResult, SearchResult, PaginatedResponse, SearchOptions, PaginationOptions } from '../types/rune.types';
 
 export class APIService {
   private readonly baseUrl: string;

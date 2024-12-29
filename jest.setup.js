@@ -1,7 +1,9 @@
 // BigInt serialization support
-BigInt.prototype.toJSON = function() {
-  return this.toString();
-};
+if (typeof BigInt !== 'undefined') {
+  BigInt.prototype.toJSON = function() {
+    return this.toString();
+  };
+}
 
 // Jest environment configuration
 expect.extend({

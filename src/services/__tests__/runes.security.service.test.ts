@@ -1,74 +1,96 @@
 import { RunesSecurityService } from '../runes.security.service';
-import { RunesTransfer } from '../../types/runes.types';
+import { RPCClient } from '../../utils/rpc.client';
+import { Logger } from '../../utils/logger';
+import { createMockLogger, createMockRpcClient } from '../../utils/__tests__/test.utils';
 
 describe('RunesSecurityService', () => {
   let securityService: RunesSecurityService;
+  let mockRpcClient: jest.Mocked<RPCClient>;
+  let mockLogger: jest.Mocked<Logger>;
 
   beforeEach(() => {
-    securityService = new RunesSecurityService({
-      maxTransferAmount: 1000000,
-      maxBlockUsage: 0.75,
-      blacklistedAddresses: ['blacklisted1'],
-      allowedAddresses: ['allowed1']
+    mockLogger = createMockLogger('RunesSecurityService');
+    mockRpcClient = createMockRpcClient(mockLogger);
+    securityService = new RunesSecurityService(mockRpcClient, mockLogger);
+  });
+
+  describe('verifyRune', () => {
+    const runeId = 'rune123';
+
+    it('should verify rune successfully', async () => {
+      const mockResponse = {
+        result: {
+          verified: true
+        }
+      };
+
+      mockRpcClient.call.mockResolvedValueOnce(mockResponse);
+
+      const result = await securityService.verifyRune(runeId);
+      expect(result).toBe(true);
+      expect(mockRpcClient.call).toHaveBeenCalledWith('verifyrune', [runeId]);
+    });
+
+    it('should handle unverified rune', async () => {
+      const mockResponse = {
+        result: {
+          verified: false
+        }
+      };
+
+      mockRpcClient.call.mockResolvedValueOnce(mockResponse);
+
+      const result = await securityService.verifyRune(runeId);
+      expect(result).toBe(false);
+      expect(mockLogger.warn).toHaveBeenCalled();
+    });
+
+    it('should handle RPC errors', async () => {
+      mockRpcClient.call.mockRejectedValueOnce(new Error('RPC error'));
+
+      await expect(securityService.verifyRune(runeId)).rejects.toThrow('Failed to verify rune');
+      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 
-  describe('validateTransfer', () => {
-    it('should validate a valid transfer', async () => {
-      const transfer: RunesTransfer = {
-        txid: 'valid_txid',
-        runes: 'RUNES',
-        from: 'valid_from',
-        to: 'valid_to',
-        amount: '1000',
-        timestamp: Date.now(),
-        blockHeight: 100,
-        status: 'pending'
+  describe('checkSecurity', () => {
+    const runeId = 'rune123';
+
+    it('should check security successfully', async () => {
+      const mockResponse = {
+        result: {
+          secure: true,
+          issues: []
+        }
       };
 
-      const result = await securityService.validateTransfer(transfer);
-      expect(result.isValid).toBe(true);
-      expect(result.errors).toHaveLength(0);
+      mockRpcClient.call.mockResolvedValueOnce(mockResponse);
+
+      const result = await securityService.checkSecurity(runeId);
+      expect(result).toEqual(mockResponse.result);
+      expect(mockRpcClient.call).toHaveBeenCalledWith('checksecurity', [runeId]);
     });
 
-    it('should reject transfer with excessive amount', async () => {
-      const transfer: RunesTransfer = {
-        txid: 'valid_txid',
-        runes: 'RUNES',
-        from: 'valid_from',
-        to: 'valid_to',
-        amount: '2000000',
-        timestamp: Date.now(),
-        blockHeight: 100,
-        status: 'pending'
+    it('should handle security issues', async () => {
+      const mockResponse = {
+        result: {
+          secure: false,
+          issues: ['Potential vulnerability found']
+        }
       };
 
-      const result = await securityService.validateTransfer(transfer);
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Transfer amount exceeds maximum limit of 1000000');
-    });
-  });
+      mockRpcClient.call.mockResolvedValueOnce(mockResponse);
 
-  describe('assessAddressRisk', () => {
-    it('should assess high risk for new addresses', async () => {
-      const result = await securityService.assessAddressRisk('new_address', 'valid_address');
-      expect(result.level).toBe('high');
-      expect(result.factors).toContain('New address with limited history');
-      expect(result.recommendations).toContain('Wait for more transaction history');
+      const result = await securityService.checkSecurity(runeId);
+      expect(result).toEqual(mockResponse.result);
+      expect(mockLogger.warn).toHaveBeenCalled();
     });
 
-    it('should assess medium risk for moderately aged addresses', async () => {
-      const result = await securityService.assessAddressRisk('medium_address', 'valid_address');
-      expect(result.level).toBe('medium');
-      expect(result.factors).toContain('Address has moderate history');
-      expect(result.recommendations).toContain('Monitor transaction patterns');
-    });
+    it('should handle RPC errors', async () => {
+      mockRpcClient.call.mockRejectedValueOnce(new Error('RPC error'));
 
-    it('should assess low risk for established addresses', async () => {
-      const result = await securityService.assessAddressRisk('old_address', 'valid_address');
-      expect(result.level).toBe('low');
-      expect(result.factors).toHaveLength(0);
-      expect(result.recommendations).toHaveLength(0);
+      await expect(securityService.checkSecurity(runeId)).rejects.toThrow('Failed to check security');
+      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 }); 

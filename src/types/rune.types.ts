@@ -177,4 +177,72 @@ export interface RunesInfo {
   circulatingSupply: string;
   holders: number;
   transfers: number;
+}
+
+export interface RuneInfo {
+  id: string;
+  name: string;
+  symbol: string;
+  decimals: number;
+  totalSupply: string;
+  circulatingSupply: string;
+  creator: string;
+  createdAt: number;
+}
+
+export interface RuneBalance {
+  runeId: string;
+  amount: string;
+  lastUpdated: number;
+}
+
+export interface RuneTransaction {
+  txid: string;
+  runeId: string;
+  type: string;
+  amount: string;
+  from: string;
+  to: string;
+  timestamp: number;
+  status: string;
+}
+
+export interface RuneStats {
+  runeId: string;
+  price: string;
+  volume24h: string;
+  marketCap: string;
+  priceChange24h: string;
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  errors?: string[];
+}
+
+export interface SearchResult {
+  id: string;
+  type: string;
+  score: number;
+  data: Record<string, unknown>;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface SearchOptions {
+  query: string;
+  type?: string;
+  limit?: number;
+}
+
+export interface PaginationOptions {
+  page?: number;
+  pageSize?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
 } 

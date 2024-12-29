@@ -1,38 +1,86 @@
+import { RPCClient } from './rpc.client';
 import { Logger } from './logger';
-import { RunesValidationResult } from '../types/validation.types';
+import { ValidationResult } from '../types';
 
-export class RunesValidator extends Logger {
-  constructor() {
-    super('RunesValidator');
-  }
+export interface Transfer {
+  runeId: string;
+  amount: string;
+  fromAddress: string;
+  toAddress: string;
+}
 
-  async validateTransfer(from: string, to: string, amount: bigint): Promise<RunesValidationResult> {
+export class RunesValidator {
+  constructor(
+    private readonly rpcClient: RPCClient,
+    private readonly logger: Logger
+  ) {}
+
+  async validateTransfer(transfer: Transfer): Promise<ValidationResult> {
     try {
-      const errors: string[] = [];
+      this.logger.info('Validating transfer:', transfer);
+      const response = await this.rpcClient.call<{
+        valid: boolean;
+        errors: string[];
+        warnings: string[];
+      }>('validatetransfer', [transfer]);
 
-      if (!this._validateAddress(from)) {
-        errors.push('Invalid sender address');
-      }
-
-      if (!this._validateAddress(to)) {
-        errors.push('Invalid recipient address');
-      }
-
-      if (!amount || amount <= BigInt(0)) {
-        errors.push('Invalid amount');
+      if (!response.result) {
+        throw new Error('Invalid response from RPC');
       }
 
       return {
-        isValid: errors.length === 0,
-        errors
+        isValid: response.result.valid,
+        errors: response.result.errors || [],
+        warnings: response.result.warnings || []
       };
     } catch (error) {
-      this.error('Failed to validate transfer:', error);
-      throw error;
+      this.logger.error('Failed to validate transfer:', error);
+      throw new Error('Failed to validate transfer');
     }
   }
 
-  private _validateAddress(address: string): boolean {
-    return Boolean(address && typeof address === 'string' && address.length >= 26 && address.length <= 35);
+  async validateAddress(address: string): Promise<ValidationResult> {
+    try {
+      this.logger.info('Validating address:', address);
+      const response = await this.rpcClient.call<{ isvalid: boolean }>('validateaddress', [address]);
+
+      if (!response.result) {
+        throw new Error('Invalid response from RPC');
+      }
+
+      return {
+        isValid: response.result.isvalid,
+        errors: response.result.isvalid ? [] : ['Invalid address'],
+        warnings: []
+      };
+    } catch (error) {
+      this.logger.error('Failed to validate address:', error);
+      throw new Error('Failed to validate address');
+    }
+  }
+
+  async validateRuneId(runeId: string): Promise<ValidationResult> {
+    try {
+      this.logger.info('Validating rune ID:', runeId);
+      const response = await this.rpcClient.call<{ exists: boolean }>('validateruneid', [runeId]);
+
+      if (!response.result) {
+        throw new Error('Invalid response from RPC');
+      }
+
+      return {
+        isValid: response.result.exists,
+        errors: response.result.exists ? [] : ['Invalid rune ID'],
+        warnings: []
+      };
+    } catch (error) {
+      this.logger.error('Failed to validate rune ID:', error);
+      throw new Error('Failed to validate rune ID');
+    }
+  }
+
+  isValidAmount(amount: string): boolean {
+    const numAmount = parseFloat(amount);
+    return !isNaN(numAmount) && numAmount > 0;
   }
 } 

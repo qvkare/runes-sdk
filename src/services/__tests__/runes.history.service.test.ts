@@ -1,108 +1,50 @@
 import { RunesHistoryService } from '../runes.history.service';
 import { RPCClient } from '../../utils/rpc.client';
-import { jest } from '@jest/globals';
-
-jest.mock('../../utils/rpc.client');
+import { Logger } from '../../utils/logger';
+import { createMockLogger, createMockRpcClient } from '../../utils/__tests__/test.utils';
+import { TransactionHistory } from '../../types';
 
 describe('RunesHistoryService', () => {
   let historyService: RunesHistoryService;
   let mockRpcClient: jest.Mocked<RPCClient>;
+  let mockLogger: jest.Mocked<Logger>;
 
   beforeEach(() => {
-    mockRpcClient = new RPCClient({
-      baseUrl: 'http://localhost:8332',
-    }) as jest.Mocked<RPCClient>;
-    historyService = new RunesHistoryService(mockRpcClient);
+    mockLogger = createMockLogger('RunesHistoryService');
+    mockRpcClient = createMockRpcClient(mockLogger);
+    historyService = new RunesHistoryService(mockRpcClient, mockLogger);
   });
 
-  describe('getRunesHistory', () => {
-    it('should handle RPC errors', async () => {
-      mockRpcClient.call.mockRejectedValue(new Error('Failed to fetch runes history'));
+  describe('getTransactionHistory', () => {
+    it('should get transaction history successfully', async () => {
+      const runeId = 'rune123';
+      const mockHistory: TransactionHistory[] = [
+        {
+          txId: 'tx123',
+          timestamp: '2024-01-01T00:00:00Z',
+          type: 'transfer',
+          amount: '100',
+          status: 'confirmed'
+        }
+      ];
 
-      await expect(historyService.getRunesHistory(1000, 2000)).rejects.toThrow(
-        'Failed to fetch runes history'
-      );
-    });
-
-    it('should return transfer history', async () => {
       const mockResponse = {
-        transfers: [
-          {
-            txid: 'tx1',
-            from: 'addr1',
-            to: 'addr2',
-            amount: '1000',
-            timestamp: 1234567890,
-          },
-        ],
-        totalCount: 1,
+        result: mockHistory
       };
 
-      mockRpcClient.call.mockResolvedValue(mockResponse);
+      mockRpcClient.call.mockResolvedValueOnce(mockResponse);
 
-      const result = await historyService.getRunesHistory(1000, 2000);
-
-      expect(result).toEqual(mockResponse);
-      expect(mockRpcClient.call).toHaveBeenCalledWith('getruneshistory', [1000, 2000]);
+      const result = await historyService.getTransactionHistory(runeId);
+      expect(result).toEqual(mockHistory);
+      expect(mockRpcClient.call).toHaveBeenCalledWith('gettransactionhistory', [runeId]);
     });
-  });
 
-  describe('getAddressHistory', () => {
     it('should handle RPC errors', async () => {
-      mockRpcClient.call.mockRejectedValue(new Error('Failed to fetch address history'));
+      const runeId = 'invalid_rune';
+      mockRpcClient.call.mockRejectedValueOnce(new Error('RPC error'));
 
-      await expect(historyService.getAddressHistory('addr1')).rejects.toThrow(
-        'Failed to fetch address history'
-      );
-    });
-
-    it('should return address history', async () => {
-      const mockResponse = {
-        transfers: [
-          {
-            txid: 'tx1',
-            type: 'send',
-            amount: '1000',
-            timestamp: 1234567890,
-          },
-        ],
-      };
-
-      mockRpcClient.call.mockResolvedValue(mockResponse);
-
-      const result = await historyService.getAddressHistory('addr1');
-
-      expect(result).toEqual(mockResponse);
-      expect(mockRpcClient.call).toHaveBeenCalledWith('getaddresshistory', ['addr1']);
-    });
-  });
-
-  describe('getTransferStats', () => {
-    it('should handle RPC errors', async () => {
-      mockRpcClient.call.mockRejectedValue(new Error('Failed to fetch transfers'));
-
-      await expect(historyService.getTransferStats(1234567890, 1234567899)).rejects.toThrow(
-        'Failed to fetch transfers'
-      );
-    });
-
-    it('should return transfer statistics', async () => {
-      const mockResponse = {
-        totalTransfers: 100,
-        totalVolume: '1000000',
-        averageAmount: '10000',
-        timeRange: {
-          start: 1234567890,
-          end: 1234567899,
-        },
-      };
-
-      mockRpcClient.call.mockResolvedValue(mockResponse);
-
-      const result = await historyService.getTransferStats(1234567890, 1234567899);
-
-      expect(result).toEqual(mockResponse);
-      expect(mockRpcClient.call).toHaveBeenCalledWith('gettransferstats', [1234567890, 1234567899]);
+      await expect(historyService.getTransactionHistory(runeId)).rejects.toThrow('Failed to get transaction history');
+      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 }); 

@@ -1,99 +1,77 @@
 import { RunesOrderService } from '../runes.order.service';
 import { RPCClient } from '../../utils/rpc.client';
-import { jest } from '@jest/globals';
+import { Logger } from '../../utils/logger';
+import { createMockLogger, createMockRpcClient } from '../../utils/__tests__/test.utils';
 
-jest.mock('../../utils/rpc.client');
+export enum OrderType {
+  BUY = 'buy',
+  SELL = 'sell'
+}
 
 describe('RunesOrderService', () => {
   let orderService: RunesOrderService;
   let mockRpcClient: jest.Mocked<RPCClient>;
+  let mockLogger: jest.Mocked<Logger>;
 
   beforeEach(() => {
-    mockRpcClient = new RPCClient({
-      baseUrl: 'http://localhost:8332',
-    }) as jest.Mocked<RPCClient>;
-    orderService = new RunesOrderService(mockRpcClient);
+    mockLogger = createMockLogger('RunesOrderService');
+    mockRpcClient = createMockRpcClient(mockLogger);
+    orderService = new RunesOrderService(mockRpcClient, mockLogger);
   });
 
-  describe('placeOrder', () => {
-    it('should place a new order', async () => {
+  describe('createOrder', () => {
+    const orderParams = {
+      runeId: 'rune123',
+      amount: '100',
+      price: '10.5',
+      type: OrderType.BUY
+    };
+
+    it('should create order successfully', async () => {
       const mockResponse = {
-        orderId: 'order1',
-        status: 'pending',
+        result: { orderId: 'order123' }
       };
 
-      mockRpcClient.call.mockResolvedValue(mockResponse);
+      mockRpcClient.call.mockResolvedValueOnce(mockResponse);
 
-      const order = {
-        runesId: 'rune1',
-        amount: BigInt(1000),
-        price: BigInt(100),
-        type: 'buy',
-      };
-
-      const result = await orderService.placeOrder(order);
-
-      expect(result).toEqual(mockResponse);
-      expect(mockRpcClient.call).toHaveBeenCalledWith('placeorder', [order]);
+      const result = await orderService.createOrder(orderParams);
+      expect(result).toEqual(mockResponse.result);
+      expect(mockRpcClient.call).toHaveBeenCalledWith('createorder', [
+        orderParams.runeId,
+        orderParams.amount,
+        orderParams.price,
+        orderParams.type
+      ]);
     });
 
-    it('should handle order placement errors', async () => {
-      mockRpcClient.call.mockRejectedValue(new Error('Failed to place order'));
+    it('should handle RPC errors', async () => {
+      mockRpcClient.call.mockRejectedValueOnce(new Error('RPC error'));
 
-      const order = {
-        runesId: 'rune1',
-        amount: BigInt(1000),
-        price: BigInt(100),
-        type: 'buy',
-      };
-
-      await expect(orderService.placeOrder(order)).rejects.toThrow('Failed to place order');
+      await expect(orderService.createOrder(orderParams)).rejects.toThrow('Failed to create order');
+      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 
   describe('cancelOrder', () => {
-    it('should cancel an existing order', async () => {
+    it('should cancel order successfully', async () => {
+      const orderId = 'order123';
       const mockResponse = {
-        orderId: 'order1',
-        status: 'cancelled',
+        result: { success: true }
       };
 
-      mockRpcClient.call.mockResolvedValue(mockResponse);
+      mockRpcClient.call.mockResolvedValueOnce(mockResponse);
 
-      const result = await orderService.cancelOrder('order1');
-
-      expect(result).toEqual(mockResponse);
-      expect(mockRpcClient.call).toHaveBeenCalledWith('cancelorder', ['order1']);
+      const result = await orderService.cancelOrder(orderId);
+      expect(result).toBe(true);
+      expect(mockRpcClient.call).toHaveBeenCalledWith('cancelorder', [orderId]);
     });
 
-    it('should handle order cancellation errors', async () => {
-      mockRpcClient.call.mockRejectedValue(new Error('Failed to cancel order'));
+    it('should handle RPC errors', async () => {
+      const orderId = 'invalid_order';
+      mockRpcClient.call.mockRejectedValueOnce(new Error('RPC error'));
 
-      await expect(orderService.cancelOrder('order1')).rejects.toThrow('Failed to cancel order');
-    });
-  });
-
-  describe('getOrderStatus', () => {
-    it('should get order status', async () => {
-      const mockResponse = {
-        orderId: 'order1',
-        status: 'filled',
-        filledAmount: '1000',
-        remainingAmount: '0',
-      };
-
-      mockRpcClient.call.mockResolvedValue(mockResponse);
-
-      const result = await orderService.getOrderStatus('order1');
-
-      expect(result).toEqual(mockResponse);
-      expect(mockRpcClient.call).toHaveBeenCalledWith('getorderstatus', ['order1']);
-    });
-
-    it('should handle order status errors', async () => {
-      mockRpcClient.call.mockRejectedValue(new Error('Failed to get order status'));
-
-      await expect(orderService.getOrderStatus('order1')).rejects.toThrow('Failed to get order status');
+      await expect(orderService.cancelOrder(orderId)).rejects.toThrow('Failed to cancel order');
+      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 }); 

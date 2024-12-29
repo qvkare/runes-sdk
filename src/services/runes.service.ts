@@ -1,46 +1,57 @@
-import { RPCClient } from '../utils/rpc.client';
-import { RunesValidator } from '../utils/runes.validator';
 import { Logger } from '../utils/logger';
+import { RPCClient } from '../utils/rpc.client';
+import { RunePerformanceStats } from '../types';
+import { RunesValidator } from '../utils/runes.validator';
+import { Transfer } from '../utils/runes.validator';
 
-export class RunesService extends Logger {
-  private validator: RunesValidator;
+export class RunesService {
+  constructor(
+    private readonly rpcClient: RPCClient,
+    private readonly logger: Logger,
+    private readonly validator: RunesValidator
+  ) {}
 
-  constructor(private rpcClient: RPCClient) {
-    super('RunesService');
-    this.validator = new RunesValidator();
+  async getRuneInfo(runeId: string): Promise<RunePerformanceStats> {
+    try {
+      this.logger.info('Getting rune info for:', runeId);
+      const response = await this.rpcClient.call<RunePerformanceStats>('getruneinfo', [runeId]);
+
+      if (!response.result) {
+        throw new Error('Invalid response from RPC');
+      }
+
+      return response.result;
+    } catch (error) {
+      this.logger.error('Failed to get rune info:', error);
+      throw new Error('Failed to get rune info');
+    }
   }
 
-  async validateTransfer(from: string, to: string, amount: bigint): Promise<{ isValid: boolean; errors: string[] }> {
-    return this.validator.validateTransfer(from, to, amount);
-  }
-
-  async createTransfer(from: string, to: string, amount: bigint): Promise<string> {
-    const validationResult = await this.validator.validateTransfer(from, to, amount);
+  async transferRune(transfer: Transfer): Promise<{ txId: string }> {
+    const validationResult = await this.validator.validateTransfer(transfer);
 
     if (!validationResult.isValid) {
-      const error = new Error('Runes transfer validation failed');
-      this.error('Failed to create transfer:', error);
-      throw error;
+      this.logger.warn('Transfer validation failed:', validationResult.errors);
+      throw new Error(validationResult.errors[0]);
     }
 
-    const response = await this.rpcClient.call('createtransfer', [from, to, amount.toString()]);
-
-    if (!response?.txid) {
-      const error = new Error('Failed to create transfer');
-      this.error('Failed to create transfer:', error);
-      throw error;
-    }
-
-    return response.txid;
-  }
-
-  async getTransferStatus(txid: string): Promise<string> {
     try {
-      const response = await this.rpcClient.call('gettransferstatus', [txid]);
-      return response.status;
+      this.logger.info('Transferring rune:', transfer);
+      const response = await this.rpcClient.call<{ txId: string }>('transferrune', [
+        transfer.runeId,
+        transfer.amount,
+        transfer.fromAddress,
+        transfer.toAddress
+      ]);
+
+      if (!response.result) {
+        throw new Error('Invalid response from RPC');
+      }
+
+      return response.result;
     } catch (error) {
-      this.error('Failed to get transfer status:', error);
-      throw error;
+      this.logger.error('Failed to transfer rune:', error);
+      throw new Error('Failed to transfer rune');
     }
   }
 } 
