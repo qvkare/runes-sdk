@@ -1,49 +1,89 @@
-import { RPCClient } from '../utils/rpc.client';
+import { BitcoinCoreService } from './bitcoin-core.service';
+import { CreateRuneParams, TransferRuneParams, ValidationResult } from '../types';
 import { Logger } from '../utils/logger';
+import { RPCClient } from '../utils/rpc-client';
+import { RunesValidator } from '../utils/runes-validator';
 
 export class RunesSecurityService {
   constructor(
     private readonly rpcClient: RPCClient,
+    private readonly validator: RunesValidator,
+    private readonly bitcoinCore: BitcoinCoreService,
     private readonly logger: Logger
   ) {}
 
-  async verifyRune(runeId: string): Promise<boolean> {
-    try {
-      this.logger.info('Verifying rune:', runeId);
-      const response = await this.rpcClient.call<{ verified: boolean }>('verifyrune', [runeId]);
-      
-      if (!response.result) {
-        throw new Error('Invalid response from RPC');
-      }
-      
-      if (!response.result.verified) {
-        this.logger.warn('Rune verification failed:', runeId);
-      }
-      
-      return response.result.verified;
-    } catch (error) {
-      this.logger.error('Failed to verify rune:', error);
-      throw new Error('Failed to verify rune');
+  async validateRuneCreation(params: CreateRuneParams): Promise<ValidationResult> {
+    const errors: string[] = [];
+
+    if (!this.isValidSymbol(params.symbol)) {
+      errors.push('Invalid symbol');
     }
+
+    if (!this.isValidDecimals(params.decimals)) {
+      errors.push('Invalid decimals');
+    }
+
+    if (!this.isValidSupply(params.supply)) {
+      errors.push('Invalid supply');
+    }
+
+    if (!this.isValidLimit(params.limit)) {
+      errors.push('Invalid limit');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+    };
   }
 
-  async checkSecurity(runeId: string): Promise<{ secure: boolean; issues: string[] }> {
+  async validateRuneTransfer(params: TransferRuneParams): Promise<ValidationResult> {
+    const errors: string[] = [];
+
+    if (!(await this.isValidRuneId(params.runeId))) {
+      errors.push('Invalid rune ID');
+    }
+
+    if (!this.isValidAmount(params.amount)) {
+      errors.push('Invalid amount');
+    }
+
+    if (!(await this.bitcoinCore.validateAddress(params.recipient))) {
+      errors.push('Invalid recipient address');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+    };
+  }
+
+  private isValidSymbol(symbol: string): boolean {
+    return /^[A-Z0-9]{1,8}$/.test(symbol);
+  }
+
+  private isValidDecimals(decimals: number): boolean {
+    return Number.isInteger(decimals) && decimals >= 0 && decimals <= 8;
+  }
+
+  private isValidSupply(supply: number): boolean {
+    return Number.isInteger(supply) && supply > 0;
+  }
+
+  private isValidLimit(limit: number): boolean {
+    return Number.isInteger(limit) && limit > 0;
+  }
+
+  private isValidAmount(amount: number): boolean {
+    return Number.isInteger(amount) && amount > 0;
+  }
+
+  private async isValidRuneId(runeId: string): Promise<boolean> {
     try {
-      this.logger.info('Checking security for rune:', runeId);
-      const response = await this.rpcClient.call<{ secure: boolean; issues: string[] }>('checksecurity', [runeId]);
-      
-      if (!response.result) {
-        throw new Error('Invalid response from RPC');
-      }
-      
-      if (!response.result.secure) {
-        this.logger.warn('Security issues found for rune:', runeId, response.result.issues);
-      }
-      
-      return response.result;
-    } catch (error) {
-      this.logger.error('Failed to check security:', error);
-      throw new Error('Failed to check security');
+      const tx = await this.bitcoinCore.getRawTransaction(runeId);
+      return !!tx;
+    } catch {
+      return false;
     }
   }
-} 
+}

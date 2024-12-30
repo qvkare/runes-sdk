@@ -10,8 +10,8 @@ TypeScript SDK for interacting with Bitcoin Runes protocol.
 - 📊 Comprehensive runes statistics
 - 💼 Advanced batch operations
 - 🔍 Detailed transaction history
-- 💧 Liquidity pool management
-- 📈 Performance monitoring
+- 💧 Performance monitoring
+- 🔔 Real-time metrics and logging
 
 ## Installation
 
@@ -22,125 +22,193 @@ npm install runes-sdk
 ## Quick Start
 
 ```typescript
-import { RunesSDK } from 'runes-sdk';
+import { RunesService } from 'runes-sdk';
 
 // Initialize SDK
-const sdk = new RunesSDK({
-  ordServer: 'http://localhost:8080',
-  network: 'mainnet'
+const runesService = new RunesService({
+  bitcoinRpc: {
+    host: 'localhost',
+    port: 8332,
+    username: 'your-rpc-username',
+    password: 'your-rpc-password'
+  },
+  network: 'testnet',
+  monitoring: {
+    enabled: true,
+    port: 9090
+  }
 });
 
-// Get runes information
-const runesInfo = await sdk.getRunes('EXAMPLE');
-
-// Get runes balance
-const balance = await sdk.getRunesBalance('bc1qxxx', 'EXAMPLE');
-
-// Get runes history
-const history = await sdk.getRunesHistory('EXAMPLE');
-
-// List all runes
-const runes = await sdk.listRunes();
-```
-
-## Advanced Usage
-
-### Batch Operations
-
-```typescript
-// Create multiple transfers in a single batch
-const batch = sdk.createBatch();
-batch.addTransfer('RUNES1', 'address1', 100);
-batch.addTransfer('RUNES2', 'address2', 200);
-await batch.execute();
-```
-
-### Liquidity Pool Management
-
-```typescript
-// Create a liquidity pool
-await sdk.liquidity.createPool('RUNES1', 'RUNES2', {
-  initialLiquidity: 1000
+// Mint new runes
+const mintResult = await runesService.mintRunes({
+  symbol: 'TEST',
+  supply: 1000000
 });
 
-// Add liquidity
-await sdk.liquidity.addLiquidity('POOL_ID', {
-  runes1Amount: 500,
-  runes2Amount: 500
+// Send runes
+const sendResult = await runesService.sendRunes({
+  symbol: 'TEST',
+  amount: 1000,
+  to: 'tb1qtest...'
 });
+
+// Get balance
+const balance = await runesService.getBalance('tb1qtest...', 'TEST');
 ```
 
-### Performance Monitoring
+## Batch Operations
 
 ```typescript
-// Get performance metrics
-const metrics = await sdk.performance.getMetrics('RUNES1');
-console.log('Transaction throughput:', metrics.throughput);
-console.log('Average confirmation time:', metrics.avgConfirmationTime);
+import { BatchService } from 'runes-sdk';
+
+// Initialize batch service
+const batchService = new BatchService(runesService, {
+  batchSize: 100,
+  processingInterval: 1000
+});
+
+// Start batch processing
+batchService.start();
+
+// Add operations to batch
+const batchId = 'batch1';
+await batchService.addMintOperation(batchId, {
+  symbol: 'TEST',
+  supply: 1000000
+});
+
+await batchService.addTransferOperation(batchId, {
+  symbol: 'TEST',
+  amount: 1000,
+  to: 'tb1qtest...'
+});
+
+// Wait for batch completion
+const results = await batchService.waitForBatchCompletion(batchId);
+```
+
+## Monitoring & Metrics
+
+The SDK includes built-in monitoring capabilities:
+
+- Prometheus metrics at `/metrics`
+- Health check endpoint at `/health`
+- Detailed logging with Winston
+
+```typescript
+// Metrics are automatically collected
+// Access Prometheus metrics at http://localhost:9090/metrics
+
+// Health check
+// GET http://localhost:9090/health
+// Response: { "status": "ok" }
+
+// Available metrics:
+// - runes_transactions_total
+// - runes_transaction_duration_seconds
+// - runes_utxo_count
+// - runes_errors_total
+// - runes_balance
 ```
 
 ## Configuration
 
 ```typescript
-interface SDKConfig {
-  ordServer: string;      // Ord server URL
-  network: 'mainnet' | 'testnet';
-  timeout?: number;       // Request timeout in ms
-  retryAttempts?: number; // Number of retry attempts
-  batchSize?: number;     // Maximum batch size
-  security?: {
-    validateAddresses: boolean;
-    requireSignature: boolean;
-  }
+interface RunesConfig {
+  // Bitcoin Core RPC configuration
+  bitcoinRpc: {
+    host: string;
+    port: number;
+    username: string;
+    password: string;
+    timeout?: number;
+  };
+
+  // Network selection
+  network: 'mainnet' | 'testnet' | 'regtest';
+
+  // Retry configuration
+  maxRetries?: number;
+  retryDelay?: number;
+
+  // Monitoring configuration
+  monitoring?: {
+    enabled: boolean;
+    port?: number;
+    logLevel?: 'error' | 'warn' | 'info' | 'debug';
+    metricsPath?: string;
+    healthCheckPath?: string;
+  };
 }
 ```
 
 ## API Reference
 
-### Core Methods
+### RunesService
 
-#### `getRunes(id: string): Promise<RunesInfo>`
-Get information about specific runes.
+#### `mintRunes(params: MintParams): Promise<RunesTransaction>`
 
-#### `getRunesBalance(address: string, runes: string): Promise<RunesBalance>`
-Get runes balance for a specific address.
-
-#### `getRunesHistory(runes: string): Promise<RunesTransaction[]>`
-Get transfer history of runes.
-
-#### `listRunes(options?: PaginationOptions): Promise<PaginatedResponse<RunesInfo>>`
-List all available runes.
-
-### Advanced Methods
-
-#### `validateRunesTransaction(txHex: string): Promise<ValidationResult>`
-Validate a runes transaction.
-
-#### `getRunesStats(runes: string): Promise<RunesStats>`
-Get statistics for runes.
-
-#### `searchRunes(query: SearchOptions): Promise<SearchResult>`
-Search for runes.
-
-### Security Methods
+Create new runes with specified parameters.
 
 ```typescript
-// Validate transaction security
-const validation = await sdk.security.validateTransaction(txHex);
-if (!validation.isSecure) {
-  console.error('Security issues:', validation.issues);
+interface MintParams {
+  symbol: string;    // 1-4 characters
+  supply: number;    // Total supply
+  limit?: number;    // Optional max supply
 }
 ```
 
+#### `sendRunes(params: SendParams): Promise<RunesTransaction>`
+
+Transfer runes to another address.
+
+```typescript
+interface SendParams {
+  symbol: string;    // Rune symbol
+  amount: number;    // Amount to send
+  to: string;        // Recipient address
+}
+```
+
+#### `getBalance(address: string, symbol: string): Promise<RunesBalance>`
+
+Get rune balance for an address.
+
+```typescript
+interface RunesBalance {
+  symbol: string;
+  amount: number;
+  address: string;
+  lastUpdated: number;
+}
+```
+
+### BatchService
+
+#### `addMintOperation(batchId: string, params: MintParams): Promise<string>`
+
+Add a mint operation to a batch.
+
+#### `addTransferOperation(batchId: string, params: SendParams): Promise<string>`
+
+Add a transfer operation to a batch.
+
+#### `waitForBatchCompletion(batchId: string, timeout?: number): Promise<BatchOperation[]>`
+
+Wait for all operations in a batch to complete.
+
 ## Error Handling
 
-The SDK throws typed errors for different scenarios:
+The SDK uses typed errors for better error handling:
 
 ```typescript
 try {
-  const runes = await sdk.getRunes('EXAMPLE');
+  const result = await runesService.mintRunes({
+    symbol: 'TEST',
+    supply: 1000000
+  });
 } catch (error) {
-  if (error instanceof RunesSDKError) {
+  if (error instanceof RunesError) {
     console.error(`Error code: ${error.code}`);
     console.error(`Error message: ${error.message}`);
   }
@@ -159,26 +227,15 @@ npm run build
 # Run tests
 npm test
 
-# Run linter
+# Run tests with coverage
+npm run test:coverage
+
+# Lint code
 npm run lint
 
 # Format code
 npm run format
 ```
-
-## Testing
-
-The SDK includes comprehensive unit tests. To run tests with coverage:
-
-```bash
-npm test
-```
-
-Coverage requirements:
-- Branches: 90%
-- Functions: 90%
-- Lines: 90%
-- Statements: 90%
 
 ## Contributing
 
@@ -187,13 +244,6 @@ Coverage requirements:
 3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
-
-## Support
-
-If you encounter any issues or have questions:
-- Open an issue on GitHub
-- Check existing issues for solutions
-- Review the documentation
 
 ## License
 

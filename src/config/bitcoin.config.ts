@@ -23,7 +23,7 @@ export interface BitcoinConfig {
  */
 export const defaultBitcoinConfig: Partial<BitcoinConfig> = {
   timeout: 30000,
-  maxRetries: 3
+  maxRetries: 3,
 };
 
 /**
@@ -47,6 +47,6 @@ export function validateBitcoinConfig(config: Partial<BitcoinConfig>): BitcoinCo
 
   return {
     ...defaultBitcoinConfig,
-    ...config
+    ...config,
   } as BitcoinConfig;
-} 
+}

@@ -1,0 +1,17 @@
+{
+  "name": "runes-sdk-examples",
+  "version": "1.0.0",
+  "description": "Examples for Runes SDK",
+  "scripts": {
+    "basic": "ts-node basic-usage.ts",
+    "batch": "ts-node batch-operations.ts",
+    "monitoring": "ts-node monitoring.ts"
+  },
+  "dependencies": {
+    "runes-sdk": "file:../"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+} 

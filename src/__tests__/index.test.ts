@@ -1,49 +1,84 @@
-import { RunesSDK } from '../index';
+import { jest } from '@jest/globals';
+import RunesAPI from '../index';
 import { Logger } from '../utils/logger';
-import { createMockLogger } from '../utils/__tests__/test.utils';
 
-describe('RunesSDK', () => {
-  let sdk: RunesSDK;
+describe('RunesAPI', () => {
   let mockLogger: jest.Mocked<Logger>;
 
   beforeEach(() => {
-    mockLogger = createMockLogger('RunesSDK');
-    sdk = new RunesSDK({
-      baseUrl: 'http://localhost:8332',
-      logger: mockLogger
-    });
+    mockLogger = {
+      info: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+      warn: jest.fn(),
+    } as jest.Mocked<Logger>;
   });
 
-  it('should initialize with default config', () => {
-    const defaultSdk = new RunesSDK({
-      baseUrl: 'http://localhost:8332'
+  it('should initialize API with default configuration', () => {
+    const api = new RunesAPI({
+      host: 'localhost',
+      port: 8332,
+      username: 'user',
+      password: 'pass',
     });
-    expect(defaultSdk).toBeDefined();
+
+    expect(api).toBeDefined();
+    expect(api.runes).toBeDefined();
+    expect(api.security).toBeDefined();
   });
 
-  it('should initialize with custom config', () => {
-    const customSdk = new RunesSDK({
-      baseUrl: 'http://localhost:8332',
+  it('should initialize API with custom logger', () => {
+    const customApi = new RunesAPI({
+      host: 'localhost',
+      port: 8332,
+      username: 'user',
+      password: 'pass',
       logger: mockLogger,
-      timeout: 1000,
-      maxRetries: 5,
-      retryDelay: 2000
     });
-    expect(customSdk).toBeDefined();
+
+    expect(customApi).toBeDefined();
+    expect(customApi.runes).toBeDefined();
+    expect(customApi.security).toBeDefined();
   });
 
-  it('should expose service instances', () => {
-    expect(sdk.runesService).toBeDefined();
-    expect(sdk.orderService).toBeDefined();
-    expect(sdk.performanceService).toBeDefined();
-    expect(sdk.securityService).toBeDefined();
-    expect(sdk.liquidityService).toBeDefined();
-    expect(sdk.batchService).toBeDefined();
-    expect(sdk.historyService).toBeDefined();
+  it('should initialize API with minimal configuration', () => {
+    const minimalApi = new RunesAPI({
+      host: 'localhost',
+      port: 8332,
+      username: 'user',
+      password: 'pass',
+    });
+
+    expect(minimalApi).toBeDefined();
+    expect(minimalApi.runes).toBeDefined();
+    expect(minimalApi.security).toBeDefined();
   });
 
-  it('should use provided logger', () => {
-    mockLogger.info('Test log');
-    expect(mockLogger.info).toHaveBeenCalledWith('Test log');
+  it('should expose runes API methods', () => {
+    const api = new RunesAPI({
+      host: 'localhost',
+      port: 8332,
+      username: 'user',
+      password: 'pass',
+    });
+
+    expect(api.runes).toBeDefined();
+    expect(typeof api.runes.createRune).toBe('function');
+    expect(typeof api.runes.transferRune).toBe('function');
+    expect(typeof api.runes.getRuneHistory).toBe('function');
+    expect(typeof api.runes.getRuneBalance).toBe('function');
   });
-}); 
+
+  it('should expose security API methods', () => {
+    const api = new RunesAPI({
+      host: 'localhost',
+      port: 8332,
+      username: 'user',
+      password: 'pass',
+    });
+
+    expect(api.security).toBeDefined();
+    expect(typeof api.security.validateRuneCreation).toBe('function');
+    expect(typeof api.security.validateRuneTransfer).toBe('function');
+  });
+});

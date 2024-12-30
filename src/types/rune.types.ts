@@ -4,25 +4,25 @@
 
 // Runes data structure
 export interface Runes {
-  id: string;           
-  symbol: string;       
-  decimals: number;     
-  supply: bigint;       
-  limit?: bigint;       
-  minted: bigint;       
-  burned: bigint;       
-  timestamp: number;    
-  creator: string;      
-  mintable: boolean;    
+  id: string;
+  symbol: string;
+  decimals: number;
+  supply: bigint;
+  limit?: bigint;
+  minted: bigint;
+  burned: bigint;
+  timestamp: number;
+  creator: string;
+  mintable: boolean;
   transferable: boolean;
 }
 
 // Runes balance information
 export interface RunesBalance {
-  address: string;      
-  runes: string;        
-  amount: bigint;      
-  lastUpdated: number;   
+  address: string;
+  runes: string;
+  amount: bigint;
+  lastUpdated: number;
 }
 
 // Runes transfer details
@@ -41,7 +41,7 @@ export interface RunesTransfer {
 export enum RunesOperationType {
   TRANSFER = 'transfer',
   MINT = 'mint',
-  BURN = 'burn'
+  BURN = 'burn',
 }
 
 // Runes operation details
@@ -245,4 +245,4 @@ export interface PaginationOptions {
   pageSize?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
-} 
+}

@@ -1,41 +1,45 @@
-import { Logger } from '../logger';
+import { ConsoleLogger } from '../logger';
 
-describe('Logger', () => {
-  let logger: Logger;
-  let consoleInfoSpy: jest.SpyInstance;
-  let consoleErrorSpy: jest.SpyInstance;
-  let consoleWarnSpy: jest.SpyInstance;
-  let consoleDebugSpy: jest.SpyInstance;
+describe('ConsoleLogger', () => {
+  let logger: ConsoleLogger;
+  let mockConsole: jest.SpyInstance;
 
   beforeEach(() => {
-    logger = new Logger('TestContext');
-    consoleInfoSpy = jest.spyOn(console, 'info').mockImplementation();
-    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-    consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-    consoleDebugSpy = jest.spyOn(console, 'debug').mockImplementation();
+    logger = new ConsoleLogger();
+    mockConsole = jest.spyOn(console, 'log').mockImplementation();
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    mockConsole.mockRestore();
   });
 
   it('should log info messages', () => {
-    logger.info('Test message');
-    expect(consoleInfoSpy).toHaveBeenCalled();
+    const message = 'test info message';
+    logger.info(message);
+    expect(mockConsole).toHaveBeenCalledWith(message);
   });
 
   it('should log error messages', () => {
-    logger.error('Test error');
-    expect(consoleErrorSpy).toHaveBeenCalled();
+    const message = 'test error message';
+    const mockError = jest.spyOn(console, 'error').mockImplementation();
+    logger.error(message);
+    expect(mockError).toHaveBeenCalledWith(message);
+    mockError.mockRestore();
   });
 
   it('should log warning messages', () => {
-    logger.warn('Test warning');
-    expect(consoleWarnSpy).toHaveBeenCalled();
+    const message = 'test warning message';
+    const mockWarn = jest.spyOn(console, 'warn').mockImplementation();
+    logger.warn(message);
+    expect(mockWarn).toHaveBeenCalledWith(message);
+    mockWarn.mockRestore();
   });
 
   it('should log debug messages', () => {
-    logger.debug('Test debug');
-    expect(consoleDebugSpy).toHaveBeenCalled();
+    const message = 'test debug message';
+    const mockDebug = jest.spyOn(console, 'debug').mockImplementation();
+    logger.debug(message);
+    expect(mockDebug).toHaveBeenCalledWith(message);
+    mockDebug.mockRestore();
   });
-}); 
+});

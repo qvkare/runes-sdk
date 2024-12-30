@@ -1,4 +1,4 @@
-name: CI/CD
+name: CI
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
 
     strategy:
@@ -35,10 +35,9 @@ jobs:
     - name: Build
       run: npm run build
 
-  publish:
-    needs: build
+  coverage:
+    needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     
     steps:
     - uses: actions/checkout@v3
@@ -47,15 +46,17 @@ jobs:
       uses: actions/setup-node@v3
       with:
         node-version: '18.x'
-        registry-url: 'https://registry.npmjs.org'
+        cache: 'npm'
     
     - name: Install dependencies
       run: npm ci
     
-    - name: Build
-      run: npm run build
+    - name: Run tests with coverage
+      run: npm run test:coverage
     
-    - name: Publish to NPM
-      run: npm publish
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} 
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./coverage/lcov.info
+        fail_ci_if_error: true 

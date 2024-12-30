@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-adapter
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: prometheus-adapter
+  template:
+    metadata:
+      labels:
+        name: prometheus-adapter
+    spec:
+      containers:
+      - name: prometheus-adapter
+        image: registry.k8s.io/prometheus-adapter/prometheus-adapter:v0.10.0
+        args:
+        - --cert-dir=/var/run/serving-cert
+        - --config=/etc/adapter/config.yaml
+        - --logtostderr=true
+        - --metrics-relist-interval=1m
+        - --prometheus-url=http://prometheus-service.monitoring.svc:9090/
+        - --secure-port=6443
+        ports:
+        - containerPort: 6443
+        volumeMounts:
+        - name: config
+          mountPath: /etc/adapter
+      volumes:
+      - name: config
+        configMap:
+          name: prometheus-adapter-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-adapter-config
+  namespace: monitoring
+data:
+  config.yaml: |
+    rules:
+    - seriesQuery: 'runes_transactions_total'
+      resources:
+        overrides:
+          namespace:
+            resource: namespace
+          pod:
+            resource: pod
+      name:
+        matches: "^(.*)_total"
+        as: "transactions_per_second"
+      metricsQuery: 'rate(<<.Series>>{<<.LabelMatchers>>}[5m])'
+    - seriesQuery: 'runes_transaction_duration_seconds'
+      resources:
+        overrides:
+          namespace:
+            resource: namespace
+          pod:
+            resource: pod
+      name:
+        matches: "^(.*)_seconds"
+        as: "response_time"
+      metricsQuery: 'avg_over_time(<<.Series>>{<<.LabelMatchers>>}[5m])'
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-adapter
+  namespace: monitoring
+spec:
+  ports:
+  - port: 443
+    targetPort: 6443
+  selector:
+    name: prometheus-adapter 

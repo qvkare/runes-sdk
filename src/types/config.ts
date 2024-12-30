@@ -26,4 +26,4 @@ export interface SearchOptions {
   status?: string;
   sort?: string;
   order?: 'asc' | 'desc';
-} 
+}

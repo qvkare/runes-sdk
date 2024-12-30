@@ -1,116 +1,194 @@
 import { RunesService } from '../runes.service';
-import { RPCClient } from '../../utils/rpc.client';
+import { BitcoinCoreService } from '../bitcoin-core.service';
+import { RunesBatchService } from '../runes.batch.service';
+import { RunesHistoryService } from '../runes.history.service';
+import { RunesValidator } from '../runes.validator';
+import { RunesSecurityService } from '../runes.security.service';
+import { CreateRuneParams, TransferRuneParams, ValidationResult } from '../../types';
 import { Logger } from '../../utils/logger';
-import { RunesValidator } from '../../utils/runes.validator';
-import { createMockLogger, createMockRpcClient } from '../../utils/__tests__/test.utils';
+import { createMockLogger, createMockBitcoinCore } from '../../utils/__tests__/test.utils';
 
 describe('RunesService', () => {
-  let runesService: RunesService;
-  let mockRpcClient: jest.Mocked<RPCClient>;
+  let service: RunesService;
   let mockLogger: jest.Mocked<Logger>;
+  let mockBitcoinCore: jest.Mocked<BitcoinCoreService>;
+  let mockHistoryService: jest.Mocked<RunesHistoryService>;
+  let mockSecurityService: jest.Mocked<RunesSecurityService>;
+  let mockBatchService: jest.Mocked<RunesBatchService>;
   let mockValidator: jest.Mocked<RunesValidator>;
 
   beforeEach(() => {
-    mockLogger = createMockLogger('RunesService');
-    mockRpcClient = createMockRpcClient(mockLogger);
+    mockLogger = createMockLogger();
+    mockBitcoinCore = createMockBitcoinCore();
+    mockHistoryService = {
+      getRuneHistory: jest.fn(),
+    } as unknown as jest.Mocked<RunesHistoryService>;
+    mockSecurityService = {
+      validateRuneCreation: jest.fn(),
+      validateRuneTransfer: jest.fn(),
+    } as unknown as jest.Mocked<RunesSecurityService>;
+    mockBatchService = {
+      createRune: jest.fn(),
+      transferRune: jest.fn(),
+    } as unknown as jest.Mocked<RunesBatchService>;
     mockValidator = {
-      validateTransfer: jest.fn(),
-      validateAddress: jest.fn(),
       validateRuneId: jest.fn(),
-      isValidAmount: jest.fn(),
+      validateAddress: jest.fn(),
+      validateRuneSymbol: jest.fn(),
+      validateRuneDecimals: jest.fn(),
+      validateRuneAmount: jest.fn(),
+      validateRuneTransaction: jest.fn(),
+      validateRuneSupply: jest.fn(),
+      validateRuneLimit: jest.fn(),
+      bitcoinCore: mockBitcoinCore,
       logger: mockLogger,
-      rpcClient: mockRpcClient
+      isValidSymbol: jest.fn(),
+      isValidDecimals: jest.fn(),
+      isValidSupply: jest.fn(),
+      isValidLimit: jest.fn(),
+      isValidAmount: jest.fn(),
     } as unknown as jest.Mocked<RunesValidator>;
-    runesService = new RunesService(mockRpcClient, mockLogger, mockValidator);
+
+    service = new RunesService(
+      mockBitcoinCore,
+      mockLogger,
+      mockHistoryService,
+      mockSecurityService,
+      mockBatchService,
+      mockValidator
+    );
   });
 
-  describe('getRuneInfo', () => {
-    const runeId = 'rune123';
+  describe('createRune', () => {
+    const createParams: CreateRuneParams = {
+      symbol: 'TEST',
+      decimals: 8,
+      supply: 1000,
+      limit: 1000,
+    };
 
-    it('should get rune info successfully', async () => {
-      const mockStats = {
-        volume24h: 1000,
-        price24h: 1.5,
-        transactions24h: 100,
-        holders: 50,
-        marketCap: 1500000
-      };
+    it('should create a rune successfully', async () => {
+      const mockValidation: ValidationResult = { isValid: true, errors: [] };
+      mockValidator.validateRuneCreation.mockResolvedValueOnce(mockValidation);
+      mockBatchService.createRune.mockResolvedValueOnce({ txId: 'txid123' });
 
-      const mockResponse = {
-        result: mockStats
-      };
-
-      mockRpcClient.call.mockResolvedValueOnce(mockResponse);
-
-      const result = await runesService.getRuneInfo(runeId);
-      expect(result).toEqual(mockStats);
-      expect(mockRpcClient.call).toHaveBeenCalledWith('getruneinfo', [runeId]);
+      const result = await service.createRune(createParams);
+      expect(result.txId).toBe('txid123');
     });
 
-    it('should handle RPC errors', async () => {
-      mockRpcClient.call.mockRejectedValueOnce(new Error('RPC error'));
+    it('should throw error on invalid params', async () => {
+      const mockValidation: ValidationResult = {
+        isValid: false,
+        errors: ['Invalid symbol'],
+      };
+      mockValidator.validateRuneCreation.mockResolvedValueOnce(mockValidation);
 
-      await expect(runesService.getRuneInfo(runeId)).rejects.toThrow('Failed to get rune info');
-      expect(mockLogger.error).toHaveBeenCalled();
+      await expect(service.createRune(createParams)).rejects.toThrow('Invalid symbol');
     });
   });
 
   describe('transferRune', () => {
-    const transfer = {
+    const transferParams: TransferRuneParams = {
       runeId: 'rune123',
-      amount: '100',
-      fromAddress: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-      toAddress: '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX'
+      amount: 100,
+      recipient: 'addr123',
     };
 
     it('should transfer rune successfully', async () => {
-      mockValidator.validateTransfer.mockResolvedValueOnce({
-        isValid: true,
-        errors: [],
-        warnings: []
-      });
+      const mockValidation: ValidationResult = { isValid: true, errors: [] };
+      mockValidator.validateTransfer.mockResolvedValueOnce(mockValidation);
+      mockBatchService.transferRune.mockResolvedValueOnce({ txId: 'txid123' });
 
-      const mockResponse = {
-        result: {
-          txId: 'tx123'
-        }
-      };
-
-      mockRpcClient.call.mockResolvedValueOnce(mockResponse);
-
-      const result = await runesService.transferRune(transfer);
-      expect(result).toEqual(mockResponse.result);
-      expect(mockValidator.validateTransfer).toHaveBeenCalledWith(transfer);
-      expect(mockRpcClient.call).toHaveBeenCalledWith('transferrune', [
-        transfer.runeId,
-        transfer.amount,
-        transfer.fromAddress,
-        transfer.toAddress
-      ]);
+      const result = await service.transferRune(transferParams);
+      expect(result.txId).toBe('txid123');
     });
 
-    it('should handle validation errors', async () => {
-      mockValidator.validateTransfer.mockResolvedValueOnce({
+    it('should throw error on invalid transfer', async () => {
+      const mockValidation: ValidationResult = {
         isValid: false,
         errors: ['Invalid amount'],
-        warnings: []
-      });
+      };
+      mockValidator.validateTransfer.mockResolvedValueOnce(mockValidation);
 
-      await expect(runesService.transferRune(transfer)).rejects.toThrow('Invalid amount');
-      expect(mockRpcClient.call).not.toHaveBeenCalled();
-    });
-
-    it('should handle RPC errors', async () => {
-      mockValidator.validateTransfer.mockResolvedValueOnce({
-        isValid: true,
-        errors: [],
-        warnings: []
-      });
-
-      mockRpcClient.call.mockRejectedValueOnce(new Error('RPC error'));
-
-      await expect(runesService.transferRune(transfer)).rejects.toThrow('Failed to transfer rune');
-      expect(mockLogger.error).toHaveBeenCalled();
+      await expect(service.transferRune(transferParams)).rejects.toThrow('Invalid amount');
     });
   });
-}); 
+
+  describe('getRuneHistory', () => {
+    const runeId = 'rune123';
+
+    it('should get rune history successfully', async () => {
+      const mockValidation: ValidationResult = { isValid: true, errors: [] };
+      mockValidator.validateRuneId.mockResolvedValueOnce(mockValidation);
+
+      const mockHistory = [
+        {
+          txid: 'tx1',
+          type: 'transfer' as const,
+          timestamp: Date.now(),
+          details: {
+            runeId,
+            amount: 100,
+            from: 'addr1',
+            to: 'addr2',
+          },
+        },
+      ];
+
+      mockHistoryService.getRuneHistory.mockResolvedValueOnce(mockHistory);
+
+      const result = await service.getRuneHistory(runeId);
+      expect(result).toEqual(mockHistory);
+    });
+
+    it('should throw error on invalid rune ID', async () => {
+      const mockValidation: ValidationResult = {
+        isValid: false,
+        errors: ['Invalid rune ID'],
+      };
+      mockValidator.validateRuneId.mockResolvedValueOnce(mockValidation);
+
+      await expect(service.getRuneHistory(runeId)).rejects.toThrow('Invalid rune ID');
+    });
+  });
+
+  describe('getRuneBalance', () => {
+    const runeId = 'rune123';
+    const address = 'addr123';
+
+    it('should get rune balance successfully', async () => {
+      const mockRuneValidation: ValidationResult = { isValid: true, errors: [] };
+      const mockAddressValidation: ValidationResult = { isValid: true, errors: [] };
+
+      mockValidator.validateRuneId.mockResolvedValueOnce(mockRuneValidation);
+      mockValidator.validateAddress.mockResolvedValueOnce(mockAddressValidation);
+      mockBatchService.getRuneBalance.mockResolvedValueOnce(100);
+
+      const result = await service.getRuneBalance(runeId, address);
+      expect(result).toBe(100);
+    });
+
+    it('should throw error on invalid rune ID', async () => {
+      const mockRuneValidation: ValidationResult = {
+        isValid: false,
+        errors: ['Invalid rune ID'],
+      };
+      mockValidator.validateRuneId.mockResolvedValueOnce(mockRuneValidation);
+
+      await expect(service.getRuneBalance(runeId, address)).rejects.toThrow('Invalid rune ID');
+    });
+
+    it('should throw error on invalid address', async () => {
+      const mockRuneValidation: ValidationResult = { isValid: true, errors: [] };
+      const mockAddressValidation: ValidationResult = {
+        isValid: false,
+        errors: ['Invalid address'],
+      };
+
+      mockValidator.validateRuneId.mockResolvedValueOnce(mockRuneValidation);
+      mockValidator.validateAddress.mockResolvedValueOnce(mockAddressValidation);
+
+      await expect(service.getRuneBalance(runeId, address)).rejects.toThrow('Invalid address');
+    });
+  });
+});

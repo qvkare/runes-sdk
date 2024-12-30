@@ -1,61 +1,109 @@
 import { RPCClient } from '../utils/rpc.client';
-import { Logger } from '../utils/logger';
 import { RunesValidator } from '../utils/runes.validator';
-import { BatchSubmissionResult } from '../types';
-
-interface Transfer {
-  runeId: string;
-  amount: string;
-  fromAddress: string;
-  toAddress: string;
-}
+import { Logger } from '../utils/logger';
+import { BatchOperation, BatchResult, CreateRuneParams, TransferRuneParams, BatchOperationResult } from '../types';
+import { BitcoinCoreService } from '../services/bitcoin.core.service';
 
 export class RunesBatchService {
   constructor(
     private readonly rpcClient: RPCClient,
-    private readonly logger: Logger,
-    private readonly validator: RunesValidator
+    private readonly validator: RunesValidator,
+    private readonly bitcoinCore: BitcoinCoreService,
+    private readonly logger: Logger
   ) {}
 
-  async submitBatch(transfers: Transfer[]): Promise<BatchSubmissionResult> {
-    this.logger.info('Validating batch transfers:', transfers);
+  async executeBatch(operations: BatchOperation[]): Promise<BatchOperationResult[]> {
+    if (operations.length === 0) {
+      throw new Error('Batch operations cannot be empty');
+    }
 
-    for (const transfer of transfers) {
-      const validationResult = await this.validator.validateTransfer(transfer);
-      if (!validationResult.isValid) {
-        this.logger.warn('Transfer validation failed:', validationResult.errors);
-        throw new Error(validationResult.errors[0]);
+    const results: BatchOperationResult[] = [];
+
+    for (const operation of operations) {
+      try {
+        const validationResult = await this.validator.validateBatchOperation(operation);
+        if (!validationResult.isValid) {
+          results.push({
+            success: false,
+            error: validationResult.errors.join(', '),
+          });
+          continue;
+        }
+
+        if (operation.type === 'create') {
+          const result = await this.createRune(operation.params);
+          results.push({
+            success: true,
+            txId: result.txId,
+          });
+        } else if (operation.type === 'transfer') {
+          const result = await this.transferRune(operation.params);
+          results.push({
+            success: true,
+            txId: result.txId,
+          });
+        }
+      } catch (error) {
+        results.push({
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
       }
     }
 
-    try {
-      this.logger.info('Submitting batch:', transfers);
-      const response = await this.rpcClient.call<BatchSubmissionResult>('submitbatch', [transfers]);
-
-      if (!response.result) {
-        throw new Error('Invalid response from RPC');
-      }
-
-      return response.result;
-    } catch (error) {
-      this.logger.error('Failed to submit batch:', error);
-      throw new Error('Failed to submit batch');
-    }
+    return results;
   }
 
-  async getBatchStatus(batchId: string): Promise<BatchSubmissionResult> {
+  async getBatchStatus(batchId: string): Promise<BatchResult> {
     try {
-      this.logger.info('Getting batch status:', batchId);
-      const response = await this.rpcClient.call<BatchSubmissionResult>('getbatchstatus', [batchId]);
-
-      if (!response.result) {
-        throw new Error('Invalid response from RPC');
+      const operations = await this.rpcClient.call('getbatchstatus', [batchId]);
+      
+      if (!operations) {
+        throw new Error('Invalid batch ID');
       }
 
-      return response.result;
+      const completedOperations = operations.filter((op: BatchOperation) => op.status === 'completed').length;
+      const failedOperations = operations.filter((op: BatchOperation) => op.status === 'failed').length;
+      const pendingOperations = operations.filter((op: BatchOperation) => op.status === 'pending').length;
+
+      return {
+        operations,
+        totalOperations: operations.length,
+        completedOperations,
+        failedOperations,
+        pendingOperations,
+      };
     } catch (error) {
       this.logger.error('Failed to get batch status:', error);
-      throw new Error('Failed to get batch status');
+      throw error;
     }
   }
-} 
+
+  private async processCreateOperation(params: CreateRuneParams): Promise<BatchResult> {
+    const validationResult = await this.validator.validateRuneCreation(params);
+    if (!validationResult.isValid) {
+      throw new Error(validationResult.errors.join(', '));
+    }
+
+    const response = await this.rpcClient.call('createrune', [params]);
+    return {
+      id: response.id,
+      success: true,
+      result: response,
+    };
+  }
+
+  private async processTransferOperation(params: TransferRuneParams): Promise<BatchResult> {
+    const validationResult = await this.validator.validateTransfer(params);
+    if (!validationResult.isValid) {
+      throw new Error(validationResult.errors.join(', '));
+    }
+
+    const response = await this.rpcClient.call('transferrune', [params]);
+    return {
+      id: response.id,
+      success: true,
+      result: response,
+    };
+  }
+}

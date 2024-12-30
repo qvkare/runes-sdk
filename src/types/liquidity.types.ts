@@ -10,4 +10,4 @@ export interface LiquidityPool {
   providers: LiquidityProvider[];
   createdAt: Date;
   updatedAt: Date;
-} 
+}

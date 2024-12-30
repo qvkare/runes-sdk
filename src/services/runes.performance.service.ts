@@ -1,44 +1,29 @@
 import { RPCClient } from '../utils/rpc.client';
+import { RunesValidator } from '../utils/runes.validator';
 import { Logger } from '../utils/logger';
-import { RunePerformanceStats } from '../types';
-
-interface PerformanceMetrics {
-  price: string;
-  volume24h: string;
-  marketCap: string;
-  priceChange24h: string;
-}
 
 export class RunesPerformanceService {
   constructor(
     private readonly rpcClient: RPCClient,
+    private readonly validator: RunesValidator,
     private readonly logger: Logger
   ) {}
 
-  public async getPerformanceMetrics(runeId: string): Promise<PerformanceMetrics> {
+  async getMarketStats(): Promise<any> {
     try {
-      const response = await this.rpcClient.call<PerformanceMetrics>('getperformancemetrics', [runeId]);
-      if (!response.result) {
-        throw new Error('Empty response received');
-      }
-      return response.result;
+      // Implement market stats logic
+      return {};
     } catch (error) {
-      this.logger.error('Failed to get performance metrics:', error);
-      throw new Error('Failed to get performance metrics');
+      throw new Error('Failed to get market stats');
     }
   }
 
-  public async getStats(runeId: string): Promise<RunePerformanceStats> {
-    this.logger.info(`Fetching performance stats for rune: ${runeId}`);
+  async getRuneRanking(metric: string, limit: number): Promise<any> {
     try {
-      const response = await this.rpcClient.call<RunePerformanceStats>('getrunestats', [runeId]);
-      if (!response.result) {
-        throw new Error('Empty response received');
-      }
-      return response.result;
+      // Implement rune ranking logic
+      return [];
     } catch (error) {
-      this.logger.error('Failed to get rune stats:', error);
-      throw new Error('Failed to get rune stats');
+      throw new Error('Failed to get ranking');
     }
   }
-} 
+}

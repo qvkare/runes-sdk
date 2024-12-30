@@ -1,86 +1,335 @@
-import { RPCClient } from './rpc.client';
+import { BitcoinCoreService } from '../services/bitcoin-core.service';
 import { Logger } from './logger';
-import { ValidationResult } from '../types';
-
-export interface Transfer {
-  runeId: string;
-  amount: string;
-  fromAddress: string;
-  toAddress: string;
-}
+import { ValidationResult } from '../types/validation.types';
+import { CreateRuneParams, TransferRuneParams } from '../types';
+import { BatchOperation, BatchValidationResult } from '../types/batch.types';
 
 export class RunesValidator {
   constructor(
-    private readonly rpcClient: RPCClient,
+    private readonly bitcoinCore: BitcoinCoreService,
     private readonly logger: Logger
   ) {}
 
-  async validateTransfer(transfer: Transfer): Promise<ValidationResult> {
+  async validateRuneCreation(params: CreateRuneParams): Promise<ValidationResult> {
     try {
-      this.logger.info('Validating transfer:', transfer);
-      const response = await this.rpcClient.call<{
-        valid: boolean;
-        errors: string[];
-        warnings: string[];
-      }>('validatetransfer', [transfer]);
+      if (!this.isValidSymbol(params.symbol)) {
+        return {
+          isValid: false,
+          errors: ['Invalid rune symbol'],
+        };
+      }
 
-      if (!response.result) {
-        throw new Error('Invalid response from RPC');
+      if (!this.isValidDecimals(params.decimals)) {
+        return {
+          isValid: false,
+          errors: ['Invalid decimals'],
+        };
+      }
+
+      if (!this.isValidSupply(params.supply)) {
+        return {
+          isValid: false,
+          errors: ['Invalid supply'],
+        };
+      }
+
+      if (!this.isValidLimit(params.limit)) {
+        return {
+          isValid: false,
+          errors: ['Invalid limit'],
+        };
       }
 
       return {
-        isValid: response.result.valid,
-        errors: response.result.errors || [],
-        warnings: response.result.warnings || []
+        isValid: true,
+        errors: [],
       };
     } catch (error) {
-      this.logger.error('Failed to validate transfer:', error);
-      throw new Error('Failed to validate transfer');
+      this.logger.error('Error validating rune creation:', error);
+      return {
+        isValid: false,
+        errors: ['Failed to validate rune creation'],
+      };
     }
   }
 
-  async validateAddress(address: string): Promise<ValidationResult> {
+  async validateTransfer(params: TransferRuneParams): Promise<ValidationResult> {
     try {
-      this.logger.info('Validating address:', address);
-      const response = await this.rpcClient.call<{ isvalid: boolean }>('validateaddress', [address]);
+      if (!this.isValidRuneId(params.runeId)) {
+        return {
+          isValid: false,
+          errors: ['Invalid rune ID'],
+        };
+      }
 
-      if (!response.result) {
-        throw new Error('Invalid response from RPC');
+      if (!this.isValidAmount(params.amount)) {
+        return {
+          isValid: false,
+          errors: ['Invalid amount'],
+        };
       }
 
       return {
-        isValid: response.result.isvalid,
-        errors: response.result.isvalid ? [] : ['Invalid address'],
-        warnings: []
+        isValid: true,
+        errors: [],
       };
     } catch (error) {
-      this.logger.error('Failed to validate address:', error);
-      throw new Error('Failed to validate address');
+      this.logger.error('Error validating transfer:', error);
+      return {
+        isValid: false,
+        errors: ['Failed to validate transfer'],
+      };
     }
   }
 
   async validateRuneId(runeId: string): Promise<ValidationResult> {
     try {
-      this.logger.info('Validating rune ID:', runeId);
-      const response = await this.rpcClient.call<{ exists: boolean }>('validateruneid', [runeId]);
-
-      if (!response.result) {
-        throw new Error('Invalid response from RPC');
+      if (!this.isValidRuneId(runeId)) {
+        return {
+          isValid: false,
+          errors: ['Invalid rune ID format'],
+        };
       }
 
       return {
-        isValid: response.result.exists,
-        errors: response.result.exists ? [] : ['Invalid rune ID'],
-        warnings: []
+        isValid: true,
+        errors: [],
       };
     } catch (error) {
-      this.logger.error('Failed to validate rune ID:', error);
-      throw new Error('Failed to validate rune ID');
+      this.logger.error('Error validating rune ID:', error);
+      return {
+        isValid: false,
+        errors: ['Failed to validate rune ID'],
+      };
     }
   }
 
-  isValidAmount(amount: string): boolean {
-    const numAmount = parseFloat(amount);
-    return !isNaN(numAmount) && numAmount > 0;
+  async validateAddress(address: string): Promise<ValidationResult> {
+    try {
+      const isValid = await this.bitcoinCore.validateAddress(address);
+      if (!isValid) {
+        return {
+          isValid: false,
+          errors: ['Invalid address'],
+        };
+      }
+
+      return {
+        isValid: true,
+        errors: [],
+      };
+    } catch (error) {
+      this.logger.error('Error validating address:', error);
+      return {
+        isValid: false,
+        errors: ['Failed to validate address'],
+      };
+    }
   }
-} 
+
+  async validateRuneSymbol(symbol: string): Promise<ValidationResult> {
+    try {
+      if (!this.isValidSymbol(symbol)) {
+        return {
+          isValid: false,
+          errors: ['Invalid rune symbol'],
+        };
+      }
+
+      return {
+        isValid: true,
+        errors: [],
+      };
+    } catch (error) {
+      this.logger.error('Error validating rune symbol:', error);
+      return {
+        isValid: false,
+        errors: ['Failed to validate rune symbol'],
+      };
+    }
+  }
+
+  async validateRuneDecimals(decimals: number): Promise<ValidationResult> {
+    try {
+      if (!this.isValidDecimals(decimals)) {
+        return {
+          isValid: false,
+          errors: ['Invalid decimals'],
+        };
+      }
+
+      return {
+        isValid: true,
+        errors: [],
+      };
+    } catch (error) {
+      this.logger.error('Error validating decimals:', error);
+      return {
+        isValid: false,
+        errors: ['Failed to validate decimals'],
+      };
+    }
+  }
+
+  async validateRuneAmount(amount: number): Promise<ValidationResult> {
+    try {
+      if (!this.isValidAmount(amount)) {
+        return {
+          isValid: false,
+          errors: ['Invalid amount'],
+        };
+      }
+
+      return {
+        isValid: true,
+        errors: [],
+      };
+    } catch (error) {
+      this.logger.error('Error validating amount:', error);
+      return {
+        isValid: false,
+        errors: ['Failed to validate amount'],
+      };
+    }
+  }
+
+  async validateRuneTransaction(txId: string): Promise<ValidationResult> {
+    try {
+      const tx = await this.bitcoinCore.getRawTransaction(txId);
+      if (!tx) {
+        return {
+          isValid: false,
+          errors: ['Transaction not found'],
+        };
+      }
+
+      return {
+        isValid: true,
+        errors: [],
+      };
+    } catch (error) {
+      this.logger.error('Error validating transaction:', error);
+      return {
+        isValid: false,
+        errors: ['Failed to validate transaction'],
+      };
+    }
+  }
+
+  async validateRuneSupply(supply: number): Promise<ValidationResult> {
+    try {
+      if (!this.isValidSupply(supply)) {
+        return {
+          isValid: false,
+          errors: ['Invalid supply'],
+        };
+      }
+
+      return {
+        isValid: true,
+        errors: [],
+      };
+    } catch (error) {
+      this.logger.error('Error validating supply:', error);
+      return {
+        isValid: false,
+        errors: ['Failed to validate supply'],
+      };
+    }
+  }
+
+  async validateRuneLimit(limit: number): Promise<ValidationResult> {
+    try {
+      if (!this.isValidLimit(limit)) {
+        return {
+          isValid: false,
+          errors: ['Invalid limit'],
+        };
+      }
+
+      return {
+        isValid: true,
+        errors: [],
+      };
+    } catch (error) {
+      this.logger.error('Error validating limit:', error);
+      return {
+        isValid: false,
+        errors: ['Failed to validate limit'],
+      };
+    }
+  }
+
+  async validateBatchOperation(operation: BatchOperation): Promise<BatchValidationResult> {
+    const errors: string[] = [];
+
+    if (!operation.id) {
+      errors.push('Operation ID is required');
+    }
+
+    if (!operation.type) {
+      errors.push('Operation type is required');
+    }
+
+    if (!operation.params) {
+      errors.push('Operation params are required');
+    }
+
+    if (operation.type === 'create') {
+      if (!operation.params.symbol) {
+        errors.push('Symbol is required for create operation');
+      }
+      if (!operation.params.decimals) {
+        errors.push('Decimals is required for create operation');
+      }
+      if (!operation.params.supply) {
+        errors.push('Supply is required for create operation');
+      }
+      if (!operation.params.limit) {
+        errors.push('Limit is required for create operation');
+      }
+    } else if (operation.type === 'transfer') {
+      if (!operation.params.runeId) {
+        errors.push('Rune ID is required for transfer operation');
+      }
+      if (!operation.params.amount) {
+        errors.push('Amount is required for transfer operation');
+      }
+      if (!operation.params.fromAddress) {
+        errors.push('From address is required for transfer operation');
+      }
+      if (!operation.params.toAddress) {
+        errors.push('To address is required for transfer operation');
+      }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+    };
+  }
+
+  private isValidRuneId(runeId: string): boolean {
+    return typeof runeId === 'string' && runeId.length === 64;
+  }
+
+  private isValidSymbol(symbol: string): boolean {
+    return typeof symbol === 'string' && symbol.length > 0 && symbol.length <= 8;
+  }
+
+  private isValidDecimals(decimals: number): boolean {
+    return Number.isInteger(decimals) && decimals >= 0 && decimals <= 18;
+  }
+
+  private isValidSupply(supply: number): boolean {
+    return Number.isFinite(supply) && supply > 0;
+  }
+
+  private isValidLimit(limit: number): boolean {
+    return Number.isFinite(limit) && limit > 0;
+  }
+
+  private isValidAmount(amount: number): boolean {
+    return Number.isFinite(amount) && amount > 0;
+  }
+}

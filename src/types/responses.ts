@@ -56,4 +56,4 @@ export interface PaginatedResponse<T> {
   page: number;
   limit: number;
   pages: number;
-} 
+}

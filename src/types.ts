@@ -1,38 +1,46 @@
 import { Logger } from './utils/logger';
 
+export interface RPCClientConfig {
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  maxRetries?: number;
+  logger?: Logger;
+}
+
 export interface RPCResponse<T> {
-  result?: T;
-  error?: {
+  result: T;
+  error: {
+    code: number;
     message: string;
-  };
+  } | null;
+  id: number;
 }
 
 export interface ValidationResult {
   isValid: boolean;
   errors: string[];
-  warnings: string[];
 }
 
-export interface RunePerformanceStats {
-  volume24h: number;
-  price24h: number;
-  transactions24h: number;
-  holders: number;
-  marketCap: number;
+export interface BatchOperation {
+  type: 'create' | 'transfer';
+  symbol?: string;
+  amount: number;
+  recipient: string;
 }
 
-export interface BatchSubmissionResult {
-  batchId: string;
-  status: string;
-  timestamp: string;
-}
-
-export interface TransactionHistory {
-  txId: string;
-  timestamp: string;
-  type: string;
-  amount: string;
-  status: string;
+export interface BatchResult {
+  success: {
+    type: string;
+    symbol?: string;
+    txId: string;
+  }[];
+  failed: {
+    type: string;
+    symbol?: string;
+    error: string;
+  }[];
 }
 
 export interface LiquidityPool {
@@ -42,42 +50,23 @@ export interface LiquidityPool {
   volume24h: number;
 }
 
-export interface Order {
-  id: string;
+export interface ProviderLiquidity {
   runeId: string;
+  address: string;
   amount: number;
-  price: number;
-  type: OrderType;
-  status: OrderStatus;
-  createdAt: string;
+  share: number;
 }
 
-export interface OrderParams {
-  runeId: string;
-  amount: string;
-  price: string;
-  type: OrderType;
+export interface RuneHistory {
+  transactions: {
+    txid: string;
+    type: 'create' | 'transfer';
+    timestamp: number;
+    details: {
+      runeId: string;
+      amount: number;
+      from?: string;
+      to?: string;
+    };
+  }[];
 }
-
-export interface OrderResult {
-  orderId: string;
-}
-
-export enum OrderType {
-  BUY = 'buy',
-  SELL = 'sell'
-}
-
-export enum OrderStatus {
-  OPEN = 'open',
-  FILLED = 'filled',
-  CANCELLED = 'cancelled'
-}
-
-export interface SDKConfig {
-  baseUrl: string;
-  timeout?: number;
-  maxRetries?: number;
-  retryDelay?: number;
-  logger?: Logger;
-} 

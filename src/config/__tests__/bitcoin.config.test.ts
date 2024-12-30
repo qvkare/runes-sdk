@@ -5,7 +5,7 @@ describe('Bitcoin Configuration', () => {
     rpcUrl: 'http://localhost:8332',
     network: 'regtest',
     username: 'test',
-    password: 'test'
+    password: 'test',
   };
 
   describe('defaultBitcoinConfig', () => {
@@ -23,7 +23,7 @@ describe('Bitcoin Configuration', () => {
       const config = validateBitcoinConfig(validConfig);
       expect(config).toEqual({
         ...defaultBitcoinConfig,
-        ...validConfig
+        ...validConfig,
       });
     });
 
@@ -34,12 +34,16 @@ describe('Bitcoin Configuration', () => {
 
     it('should throw error for missing network', () => {
       const invalidConfig = { ...validConfig, network: undefined };
-      expect(() => validateBitcoinConfig(invalidConfig)).toThrow('Bitcoin network type is required');
+      expect(() => validateBitcoinConfig(invalidConfig)).toThrow(
+        'Bitcoin network type is required'
+      );
     });
 
     it('should throw error for missing credentials', () => {
       const invalidConfig = { ...validConfig, username: undefined, password: undefined };
-      expect(() => validateBitcoinConfig(invalidConfig)).toThrow('Bitcoin RPC credentials are required');
+      expect(() => validateBitcoinConfig(invalidConfig)).toThrow(
+        'Bitcoin RPC credentials are required'
+      );
     });
 
     it('should merge default values with provided config', () => {
@@ -47,7 +51,7 @@ describe('Bitcoin Configuration', () => {
         rpcUrl: 'http://localhost:8332',
         network: 'regtest' as const,
         username: 'test',
-        password: 'test'
+        password: 'test',
       };
 
       const config = validateBitcoinConfig(partialConfig);
@@ -55,4 +59,4 @@ describe('Bitcoin Configuration', () => {
       expect(config.maxRetries).toBe(defaultBitcoinConfig.maxRetries);
     });
   });
-}); 
+});

@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bitcoin-core-config
+data:
+  bitcoin.conf: |
+    testnet=1
+    server=1
+    rpcallowip=0.0.0.0/0
+    rpcbind=0.0.0.0
+    txindex=1
+    zmqpubhashtx=tcp://0.0.0.0:28332
+    zmqpubhashblock=tcp://0.0.0.0:28332
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bitcoin-rpc-credentials
+type: Opaque
+stringData:
+  username: "runes-user"
+  password: "runes-pass" 

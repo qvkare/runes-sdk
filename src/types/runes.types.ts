@@ -4,25 +4,25 @@
 
 // Runes data structure
 export interface Runes {
-  id: string;           
-  symbol: string;       
-  decimals: number;     
-  supply: bigint;       
-  limit?: bigint;       
-  minted: bigint;       
-  burned: bigint;       
-  timestamp: number;    
-  creator: string;      
-  mintable: boolean;    
+  id: string;
+  symbol: string;
+  decimals: number;
+  supply: bigint;
+  limit?: bigint;
+  minted: bigint;
+  burned: bigint;
+  timestamp: number;
+  creator: string;
+  mintable: boolean;
   transferable: boolean;
 }
 
 // Runes balance information
 export interface RunesBalance {
-  address: string;      
-  runes: string;        
-  amount: bigint;      
-  lastUpdated: number;   
+  address: string;
+  runes: string;
+  amount: bigint;
+  lastUpdated: number;
 }
 
 // Runes transfer details
@@ -41,7 +41,7 @@ export interface RunesTransfer {
 export enum RunesOperationType {
   TRANSFER = 'transfer',
   MINT = 'mint',
-  BURN = 'burn'
+  BURN = 'burn',
 }
 
 // Runes operation details
@@ -177,4 +177,70 @@ export interface RunesInfo {
   circulatingSupply: string;
   holders: number;
   transfers: number;
-} 
+}
+
+export interface CreateRuneParams {
+  symbol: string;
+  decimals: number;
+  supply: number;
+  limit?: number;
+  description?: string;
+  address: string;
+}
+
+export interface TransferRuneParams {
+  runeId: string;
+  amount: number;
+  fromAddress: string;
+  toAddress: string;
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
+
+export interface RuneInfo {
+  id: string;
+  symbol: string;
+  decimals: number;
+  supply: number;
+  limit?: number;
+  description?: string;
+  creator: string;
+  createdAt: number;
+}
+
+export interface RuneBalance {
+  runeId: string;
+  amount: number;
+  address: string;
+  lastUpdated: number;
+}
+
+export interface RuneTransaction {
+  txId: string;
+  runeId: string;
+  type: 'create' | 'transfer';
+  amount: number;
+  fromAddress?: string;
+  toAddress: string;
+  timestamp: number;
+  blockHeight?: number;
+  confirmations: number;
+}
+
+export interface RuneHistory {
+  transactions: Array<{
+    txid: string;
+    type: 'create' | 'transfer';
+    timestamp: number;
+    details: {
+      runeId: string;
+      amount: number;
+      from?: string;
+      to: string;
+    };
+  }>;
+  total: number;
+}

@@ -1,42 +1,91 @@
 import { RPCClient } from '../utils/rpc.client';
+import { RunesValidator } from '../utils/runes.validator';
 import { Logger } from '../utils/logger';
-import { LiquidityPool } from '../types';
+import { LiquidityPool, ProviderLiquidity } from '../types';
 
 export class RunesLiquidityService {
   constructor(
     private readonly rpcClient: RPCClient,
+    private readonly validator: RunesValidator,
     private readonly logger: Logger
   ) {}
 
-  async getPoolInfo(runeId: string): Promise<LiquidityPool> {
+  async addLiquidity(runeId: string, amount: number): Promise<boolean> {
     try {
-      this.logger.info('Getting liquidity pool info for rune:', runeId);
-      const response = await this.rpcClient.call<LiquidityPool>('getpoolinfo', [runeId]);
-
-      if (!response.result) {
-        throw new Error('Invalid response from RPC');
+      const validationResult = await this.validator.validateRuneSymbol(runeId);
+      if (!validationResult.isValid) {
+        throw new Error('Invalid rune symbol');
       }
 
-      return response.result;
+      const amountValidation = await this.validator.validateRuneAmount(amount);
+      if (!amountValidation.isValid) {
+        throw new Error('Invalid amount');
+      }
+
+      // Call RPC method to add liquidity
+      await this.rpcClient.call('addliquidity', [runeId, amount]);
+      return true;
     } catch (error) {
-      this.logger.error('Failed to get pool info:', error);
-      throw new Error('Failed to get pool info');
+      this.logger.error('Error adding liquidity:', error);
+      throw error;
     }
   }
 
-  async addLiquidity(runeId: string, amount: string): Promise<{ txId: string }> {
+  async removeLiquidity(runeId: string, amount: number): Promise<boolean> {
     try {
-      this.logger.info('Adding liquidity to pool:', { runeId, amount });
-      const response = await this.rpcClient.call<{ txId: string }>('addliquidity', [runeId, amount]);
-
-      if (!response.result) {
-        throw new Error('Invalid response from RPC');
+      const validationResult = await this.validator.validateRuneSymbol(runeId);
+      if (!validationResult.isValid) {
+        throw new Error('Invalid rune symbol');
       }
 
-      return response.result;
+      const amountValidation = await this.validator.validateRuneAmount(amount);
+      if (!amountValidation.isValid) {
+        throw new Error('Invalid amount');
+      }
+
+      // Call RPC method to remove liquidity
+      await this.rpcClient.call('removeliquidity', [runeId, amount]);
+      return true;
     } catch (error) {
-      this.logger.error('Failed to add liquidity:', error);
-      throw new Error('Failed to add liquidity');
+      this.logger.error('Error removing liquidity:', error);
+      throw error;
     }
   }
-} 
+
+  async getLiquidityPool(runeId: string): Promise<LiquidityPool> {
+    try {
+      const validationResult = await this.validator.validateRuneSymbol(runeId);
+      if (!validationResult.isValid) {
+        throw new Error('Invalid rune symbol');
+      }
+
+      // Call RPC method to get liquidity pool info
+      const response = await this.rpcClient.call('getliquiditypool', [runeId]);
+      return response as LiquidityPool;
+    } catch (error) {
+      this.logger.error('Error getting liquidity pool:', error);
+      throw error;
+    }
+  }
+
+  async getProviderLiquidity(runeId: string, address: string): Promise<ProviderLiquidity> {
+    try {
+      const runeValidation = await this.validator.validateRuneSymbol(runeId);
+      if (!runeValidation.isValid) {
+        throw new Error('Invalid rune symbol');
+      }
+
+      const addressValidation = await this.validator.validateAddress(address);
+      if (!addressValidation.isValid) {
+        throw new Error('Invalid address');
+      }
+
+      // Call RPC method to get provider liquidity
+      const response = await this.rpcClient.call('getproviderliquidity', [runeId, address]);
+      return response as ProviderLiquidity;
+    } catch (error) {
+      this.logger.error('Error getting provider liquidity:', error);
+      throw error;
+    }
+  }
+}

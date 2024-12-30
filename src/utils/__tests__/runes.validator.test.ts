@@ -1,190 +1,164 @@
+import { jest } from '@jest/globals';
 import { RunesValidator } from '../runes.validator';
+import { BitcoinCoreService } from '../../services/bitcoin-core.service';
 import { Logger } from '../logger';
-import { RPCClient } from '../rpc.client';
-import { createMockLogger, createMockRpcClient } from './test.utils';
+import { CreateRuneParams, TransferRuneParams } from '../../types';
 
 describe('RunesValidator', () => {
   let validator: RunesValidator;
+  let mockBitcoinCore: jest.Mocked<BitcoinCoreService>;
   let mockLogger: jest.Mocked<Logger>;
-  let mockRpcClient: jest.Mocked<RPCClient>;
 
   beforeEach(() => {
-    mockLogger = createMockLogger('RunesValidator') as jest.Mocked<Logger>;
-    mockRpcClient = createMockRpcClient(mockLogger) as jest.Mocked<RPCClient>;
-    validator = new RunesValidator(mockRpcClient, mockLogger);
+    mockLogger = {
+      info: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+      warn: jest.fn(),
+    } as jest.Mocked<Logger>;
+
+    mockBitcoinCore = {
+      validateAddress: jest.fn(),
+      getBlockCount: jest.fn(),
+      getMemPoolInfo: jest.fn(),
+      getRawTransaction: jest.fn(),
+      decodeRawTransaction: jest.fn(),
+      sendRawTransaction: jest.fn(),
+      listUnspent: jest.fn(),
+      createRawTransaction: jest.fn(),
+      signRawTransaction: jest.fn(),
+      logger: mockLogger,
+    } as unknown as jest.Mocked<BitcoinCoreService>;
+
+    validator = new RunesValidator(mockBitcoinCore, mockLogger);
   });
 
-  describe('validateTransfer', () => {
-    it('should validate successful transfer', async () => {
-      const mockResponse = {
-        result: {
-          valid: true,
-          errors: [],
-          warnings: []
-        }
-      };
+  describe('validateRuneId', () => {
+    it('should validate valid rune ID', async () => {
+      const runeId = 'VALID123';
+      mockBitcoinCore.validateAddress.mockResolvedValueOnce(true);
 
-      mockRpcClient.call.mockResolvedValueOnce(mockResponse);
-
-      const result = await validator.validateTransfer({
-        runeId: 'rune123',
-        amount: '100',
-        fromAddress: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-        toAddress: '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX'
-      });
-
-      expect(result).toEqual({
-        isValid: true,
-        errors: [],
-        warnings: []
-      });
-      expect(mockLogger.info).toHaveBeenCalled();
+      const result = await validator.validateRuneId(runeId);
+      expect(result.isValid).toBe(true);
+      expect(result.errors).toHaveLength(0);
     });
 
-    it('should handle validation errors', async () => {
-      const mockResponse = {
-        result: {
-          valid: false,
-          errors: ['Invalid amount'],
-          warnings: []
-        }
-      };
+    it('should reject invalid rune ID', async () => {
+      const runeId = '';
+      mockBitcoinCore.validateAddress.mockResolvedValueOnce(false);
 
-      mockRpcClient.call.mockResolvedValueOnce(mockResponse);
-
-      const result = await validator.validateTransfer({
-        runeId: 'rune123',
-        amount: '-100',
-        fromAddress: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-        toAddress: '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX'
-      });
-
-      expect(result).toEqual({
-        isValid: false,
-        errors: ['Invalid amount'],
-        warnings: []
-      });
-      expect(mockLogger.info).toHaveBeenCalled();
-    });
-
-    it('should handle RPC errors', async () => {
-      mockRpcClient.call.mockRejectedValueOnce(new Error('RPC error'));
-
-      await expect(validator.validateTransfer({
-        runeId: 'rune123',
-        amount: '100',
-        fromAddress: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-        toAddress: '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX'
-      })).rejects.toThrow('Failed to validate transfer');
-      expect(mockLogger.error).toHaveBeenCalled();
+      const result = await validator.validateRuneId(runeId);
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContain('Invalid rune ID format');
     });
   });
 
   describe('validateAddress', () => {
-    it('should validate address successfully', async () => {
-      const mockResponse = {
-        result: {
-          isvalid: true
-        }
-      };
+    it('should validate valid address', async () => {
+      const address = 'bc1qvalid';
+      mockBitcoinCore.validateAddress.mockResolvedValueOnce(true);
 
-      mockRpcClient.call.mockResolvedValueOnce(mockResponse);
-
-      const result = await validator.validateAddress('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa');
-      expect(result).toEqual({
-        isValid: true,
-        errors: [],
-        warnings: []
-      });
-      expect(mockLogger.info).toHaveBeenCalled();
+      const result = await validator.validateAddress(address);
+      expect(result.isValid).toBe(true);
+      expect(result.errors).toHaveLength(0);
     });
 
-    it('should handle invalid address', async () => {
-      const mockResponse = {
-        result: {
-          isvalid: false
-        }
-      };
+    it('should reject invalid address', async () => {
+      const address = 'invalid';
+      mockBitcoinCore.validateAddress.mockResolvedValueOnce(false);
 
-      mockRpcClient.call.mockResolvedValueOnce(mockResponse);
-
-      const result = await validator.validateAddress('invalid_address');
-      expect(result).toEqual({
-        isValid: false,
-        errors: ['Invalid address'],
-        warnings: []
-      });
-      expect(mockLogger.info).toHaveBeenCalled();
-    });
-
-    it('should handle RPC errors', async () => {
-      mockRpcClient.call.mockRejectedValueOnce(new Error('RPC error'));
-
-      await expect(validator.validateAddress('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa')).rejects.toThrow('Failed to validate address');
-      expect(mockLogger.error).toHaveBeenCalled();
+      const result = await validator.validateAddress(address);
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContain('Invalid Bitcoin address');
     });
   });
 
-  describe('validateRuneId', () => {
-    it('should validate rune ID successfully', async () => {
-      const mockResponse = {
-        result: {
-          exists: true
-        }
-      };
+  describe('validateRuneCreation', () => {
+    const validParams: CreateRuneParams = {
+      symbol: 'TEST',
+      decimals: 8,
+      supply: 1000,
+      limit: 10000,
+    };
 
-      mockRpcClient.call.mockResolvedValueOnce(mockResponse);
-
-      const result = await validator.validateRuneId('rune123');
-      expect(result).toEqual({
-        isValid: true,
-        errors: [],
-        warnings: []
-      });
-      expect(mockLogger.info).toHaveBeenCalled();
+    it('should validate valid creation params', async () => {
+      const result = await validator.validateRuneCreation(validParams);
+      expect(result.isValid).toBe(true);
+      expect(result.errors).toHaveLength(0);
     });
 
-    it('should handle non-existent rune ID', async () => {
-      const mockResponse = {
-        result: {
-          exists: false
-        }
-      };
-
-      mockRpcClient.call.mockResolvedValueOnce(mockResponse);
-
-      const result = await validator.validateRuneId('invalid_rune');
-      expect(result).toEqual({
-        isValid: false,
-        errors: ['Invalid rune ID'],
-        warnings: []
-      });
-      expect(mockLogger.info).toHaveBeenCalled();
+    it('should reject invalid symbol', async () => {
+      const params: CreateRuneParams = { ...validParams, symbol: '' };
+      const result = await validator.validateRuneCreation(params);
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContain('Invalid symbol format');
     });
 
-    it('should handle RPC errors', async () => {
-      mockRpcClient.call.mockRejectedValueOnce(new Error('RPC error'));
+    it('should reject invalid decimals', async () => {
+      const params: CreateRuneParams = { ...validParams, decimals: -1 };
+      const result = await validator.validateRuneCreation(params);
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContain('Invalid decimals value');
+    });
 
-      await expect(validator.validateRuneId('rune123')).rejects.toThrow('Failed to validate rune ID');
-      expect(mockLogger.error).toHaveBeenCalled();
+    it('should reject invalid supply', async () => {
+      const params: CreateRuneParams = { ...validParams, supply: 0 };
+      const result = await validator.validateRuneCreation(params);
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContain('Invalid supply value');
+    });
+
+    it('should reject invalid limit', async () => {
+      const params: CreateRuneParams = { ...validParams, limit: -1 };
+      const result = await validator.validateRuneCreation(params);
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContain('Invalid limit value');
     });
   });
 
-  describe('isValidAmount', () => {
-    it('should validate positive amount', () => {
-      expect(validator.isValidAmount('100')).toBe(true);
+  describe('validateTransfer', () => {
+    const validParams: TransferRuneParams = {
+      runeId: 'TEST123',
+      amount: 100,
+      recipient: 'bc1qvalid',
+    };
+
+    it('should validate valid transfer params', async () => {
+      mockBitcoinCore.validateAddress.mockResolvedValueOnce(true);
+      mockBitcoinCore.getRawTransaction.mockResolvedValueOnce({});
+
+      const result = await validator.validateTransfer(validParams);
+      expect(result.isValid).toBe(true);
+      expect(result.errors).toHaveLength(0);
     });
 
-    it('should invalidate negative amount', () => {
-      expect(validator.isValidAmount('-100')).toBe(false);
+    it('should reject invalid rune ID', async () => {
+      const params: TransferRuneParams = { ...validParams, runeId: '' };
+      mockBitcoinCore.validateAddress.mockResolvedValueOnce(true);
+
+      const result = await validator.validateTransfer(params);
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContain('Invalid rune ID format');
     });
 
-    it('should invalidate zero amount', () => {
-      expect(validator.isValidAmount('0')).toBe(false);
+    it('should reject invalid amount', async () => {
+      const params: TransferRuneParams = { ...validParams, amount: 0 };
+      mockBitcoinCore.validateAddress.mockResolvedValueOnce(true);
+      mockBitcoinCore.getRawTransaction.mockResolvedValueOnce({});
+
+      const result = await validator.validateTransfer(params);
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContain('Invalid amount value');
     });
 
-    it('should invalidate non-numeric amount', () => {
-      expect(validator.isValidAmount('abc')).toBe(false);
+    it('should reject invalid recipient', async () => {
+      mockBitcoinCore.validateAddress.mockResolvedValueOnce(false);
+      mockBitcoinCore.getRawTransaction.mockResolvedValueOnce({});
+
+      const params: TransferRuneParams = { ...validParams, recipient: 'invalid' };
+      const result = await validator.validateTransfer(params);
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContain('Invalid recipient address');
     });
   });
-}); 
+});
