@@ -41,7 +41,7 @@ export class RPCClient {
         }
         
         return response;
-      } catch (error) {
+      } catch (_error) {
         lastError = error as Error;
         if (attempt < this.maxRetries) {
           this.logger.warn(`RPC call failed, retrying...`, { attempt, error });
@@ -75,7 +75,7 @@ export class RPCClient {
           body: JSON.stringify(requestBody),
           signal: controller.signal
         });
-      } catch (error) {
+      } catch (_error) {
         if (error instanceof Error) {
           if (error.name === 'AbortError') {
             throw new Error('Request timed out');
@@ -96,7 +96,7 @@ export class RPCClient {
       let data;
       try {
         data = await response.json();
-      } catch (error) {
+      } catch (_error) {
         throw new Error('Invalid JSON response');
       }
       
