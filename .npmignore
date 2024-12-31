@@ -1,0 +1,32 @@
+# Development files
+src/
+tests/
+coverage/
+.github/
+.vscode/
+.idea/
+
+# Configuration files
+.eslintrc.json
+.prettierrc
+jest.config.js
+jest.setup.js
+tsconfig.json
+
+# Documentation
+CEX_INTEGRATION_PLAN.md
+
+# Git files
+.git/
+.gitignore
+
+# Logs
+*.log
+
+# Environment variables
+.env
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db 
