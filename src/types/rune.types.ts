@@ -53,13 +53,6 @@ export interface RunesOperation {
   to?: string;
 }
 
-// Validation result
-export interface RunesValidationResult {
-  valid: boolean;
-  operations: RunesOperation[];
-  errors?: string[];
-}
-
 // Performance metrics
 export interface PerformanceMetrics {
   averageResponseTime: number;
@@ -126,13 +119,18 @@ export interface TransferRisk {
 
 // Batch process result
 export interface BatchProcessResult {
+  successful: Array<{
+    transfer: BatchTransfer;
+    txid: string;
+  }>;
+  failed: Array<{
+    transfer: BatchTransfer;
+    error: Error;
+  }>;
   totalTransfers: number;
   successfulTransfers: number;
   failedTransfers: number;
-  errors: Array<{
-    txid: string;
-    error: string;
-  }>;
+  errors: Error[];
 }
 
 // Runes transfer request
@@ -181,13 +179,14 @@ export interface RunesInfo {
 
 export interface RuneInfo {
   id: string;
-  name: string;
   symbol: string;
+  amount: string;
   decimals: number;
-  totalSupply: string;
-  circulatingSupply: string;
-  creator: string;
-  createdAt: number;
+  owner: string;
+  minted: string;
+  burned: string;
+  supply: string;
+  limit: string;
 }
 
 export interface RuneBalance {
@@ -198,13 +197,11 @@ export interface RuneBalance {
 
 export interface RuneTransaction {
   txid: string;
-  runeId: string;
   type: string;
-  amount: string;
   from: string;
   to: string;
+  amount: string;
   timestamp: number;
-  status: string;
 }
 
 export interface RuneStats {
@@ -217,7 +214,8 @@ export interface RuneStats {
 
 export interface ValidationResult {
   isValid: boolean;
-  errors?: string[];
+  errors: string[];
+  operations?: any[];
 }
 
 export interface SearchResult {
@@ -245,4 +243,31 @@ export interface PaginationOptions {
   pageSize?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+}
+
+export interface RuneTransfer {
+  from: string;
+  to: string;
+  amount: string;
+  symbol?: string;
+}
+
+export interface BatchTransfer extends RuneTransfer {
+  id?: string;
+  status?: string;
+}
+
+export interface BatchProcessResult {
+  successful: Array<{
+    transfer: BatchTransfer;
+    txid: string;
+  }>;
+  failed: Array<{
+    transfer: BatchTransfer;
+    error: Error;
+  }>;
+  totalTransfers: number;
+  successfulTransfers: number;
+  failedTransfers: number;
+  errors: Error[];
 } 

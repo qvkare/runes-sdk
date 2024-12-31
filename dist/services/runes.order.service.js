@@ -8,43 +8,92 @@ class RunesOrderService {
     }
     async createOrder(params) {
         try {
-            this.logger.info('Creating order:', params);
-            const response = await this.rpcClient.call('createorder', [
-                params.runeId,
-                params.amount,
-                params.price,
-                params.type
-            ]);
-            if (!response.result) {
-                this.logger.error('Invalid response from RPC');
+            if (!params.runeId || !params.amount || !params.price || !params.type) {
+                throw new Error('Invalid order parameters');
+            }
+            const response = await this.rpcClient.call('createorder', [params]);
+            if (!response || !response.orderId) {
                 throw new Error('Invalid response from RPC');
             }
-            return response.result;
+            return {
+                orderId: response.orderId,
+                runeId: response.runeId,
+                amount: response.amount,
+                price: response.price,
+                type: response.type,
+                status: response.status,
+                timestamp: response.timestamp
+            };
         }
         catch (error) {
-            this.logger.error('Failed to create order:', error);
-            if (error instanceof Error && error.message === 'Invalid response from RPC') {
-                throw error;
+            if (error instanceof Error) {
+                this.logger.error(`Failed to create order: ${error.message}`);
+                throw new Error(`Failed to create order: ${error.message}`);
             }
-            throw new Error('Failed to create order');
+            else {
+                this.logger.error('Failed to create order: Unknown error');
+                throw new Error('Failed to create order: Unknown error');
+            }
         }
     }
     async cancelOrder(orderId) {
         try {
-            this.logger.info('Cancelling order:', orderId);
+            if (!orderId) {
+                throw new Error('Order ID is required');
+            }
             const response = await this.rpcClient.call('cancelorder', [orderId]);
-            if (!response.result) {
-                this.logger.error('Invalid response from RPC');
+            if (!response || !response.orderId) {
                 throw new Error('Invalid response from RPC');
             }
-            return response.result.success;
+            return {
+                orderId: response.orderId,
+                runeId: response.runeId,
+                amount: response.amount,
+                price: response.price,
+                type: response.type,
+                status: 'cancelled',
+                timestamp: response.timestamp
+            };
         }
         catch (error) {
-            this.logger.error('Failed to cancel order:', error);
-            if (error instanceof Error && error.message === 'Invalid response from RPC') {
-                throw error;
+            if (error instanceof Error) {
+                this.logger.error(`Failed to cancel order: ${error.message}`);
+                throw new Error(`Failed to cancel order: ${error.message}`);
             }
-            throw new Error('Failed to cancel order');
+            else {
+                this.logger.error('Failed to cancel order: Unknown error');
+                throw new Error('Failed to cancel order: Unknown error');
+            }
+        }
+    }
+    async getOrderStatus(orderId) {
+        try {
+            if (!orderId) {
+                throw new Error('Order ID is required');
+            }
+            const response = await this.rpcClient.call('getorderstatus', [orderId]);
+            if (!response || !response.orderId) {
+                throw new Error('Invalid response from RPC');
+            }
+            return {
+                orderId: response.orderId,
+                runeId: response.runeId,
+                amount: response.amount,
+                price: response.price,
+                type: response.type,
+                status: response.status,
+                timestamp: response.timestamp
+            };
+        }
+        catch (error) {
+            if (error instanceof Error) {
+                this.logger.error(`Failed to get order status: ${error.message}`);
+                throw new Error(`Failed to get order status: ${error.message}`);
+            }
+            else {
+                this.logger.error('Failed to get order status: Unknown error');
+                throw new Error('Failed to get order status: Unknown error');
+            }
         }
     }
 }

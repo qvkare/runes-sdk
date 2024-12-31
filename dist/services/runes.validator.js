@@ -1,35 +1,80 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RunesValidator = void 0;
-const logger_1 = require("../utils/logger");
-class RunesValidator extends logger_1.Logger {
-    constructor() {
-        super('RunesValidator');
+class RunesValidator {
+    constructor(rpcClient, logger) {
+        this.rpcClient = rpcClient;
+        this.logger = logger;
     }
-    async validateTransfer(from, to, amount) {
+    // Logger interface implementation
+    get level() { return this.logger.level; }
+    get context() { return this.logger.context; }
+    info(message) { this.logger.info(message); }
+    warn(message) { this.logger.warn(message); }
+    error(message) { this.logger.error(message); }
+    debug(message) { this.logger.debug(message); }
+    shouldLog(level) { return this.logger.shouldLog(level); }
+    // Validation methods
+    async validateAddress(address) {
         try {
-            const errors = [];
-            if (!this._validateAddress(from)) {
-                errors.push('Invalid sender address');
-            }
-            if (!this._validateAddress(to)) {
-                errors.push('Invalid recipient address');
-            }
-            if (!amount || amount <= BigInt(0)) {
-                errors.push('Invalid amount');
-            }
-            return {
-                isValid: errors.length === 0,
-                errors
-            };
+            const response = await this.rpcClient.call('validateaddress', [address]);
+            return { isValid: response.isvalid };
         }
         catch (error) {
-            this.error('Failed to validate transfer:', error);
-            throw error;
+            const errorMessage = `Failed to validate address: ${error instanceof Error ? error.message : 'Unknown error'}`;
+            this.logger.error(errorMessage);
+            return { isValid: false, error: errorMessage };
         }
     }
-    _validateAddress(address) {
-        return Boolean(address && typeof address === 'string' && address.length >= 26 && address.length <= 35);
+    async validateTransfer(params) {
+        try {
+            const [fromValid, toValid, runeValid] = await Promise.all([
+                this.validateAddress(params.from),
+                this.validateAddress(params.to),
+                this.validateRuneExists(params.runeId)
+            ]);
+            if (!fromValid.isValid) {
+                return { isValid: false, error: 'Invalid sender address' };
+            }
+            if (!toValid.isValid) {
+                return { isValid: false, error: 'Invalid recipient address' };
+            }
+            if (!runeValid.isValid) {
+                return { isValid: false, error: 'Invalid rune ID' };
+            }
+            if (params.amount <= 0) {
+                return { isValid: false, error: 'Invalid amount' };
+            }
+            return { isValid: true };
+        }
+        catch (error) {
+            const errorMessage = `Failed to validate transfer: ${error instanceof Error ? error.message : 'Unknown error'}`;
+            this.logger.error(errorMessage);
+            return { isValid: false, error: errorMessage };
+        }
+    }
+    async validateAmount(amount) {
+        if (typeof amount !== 'number' || amount <= 0) {
+            return { isValid: false, error: 'Invalid amount' };
+        }
+        return { isValid: true };
+    }
+    validateRuneId(runeId) {
+        if (!runeId || typeof runeId !== 'string' || runeId.length !== 64) {
+            return { isValid: false, error: 'Invalid rune ID format' };
+        }
+        return { isValid: true };
+    }
+    async validateRuneExists(runeId) {
+        try {
+            const exists = await this.rpcClient.call('runeexists', [runeId]);
+            return { isValid: exists };
+        }
+        catch (error) {
+            const errorMessage = `Failed to validate rune existence: ${error instanceof Error ? error.message : 'Unknown error'}`;
+            this.logger.error(errorMessage);
+            return { isValid: false, error: errorMessage };
+        }
     }
 }
 exports.RunesValidator = RunesValidator;

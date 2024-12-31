@@ -6,77 +6,34 @@ class RunesValidator {
         this.rpcClient = rpcClient;
         this.logger = logger;
     }
-    async validateTransfer(transfer) {
-        try {
-            this.logger.info('Validating transfer:', transfer);
-            const response = await this.rpcClient.call('validatetransfer', [transfer]);
-            if (!response.result) {
-                this.logger.error('Invalid response from RPC');
-                throw new Error('Invalid response from RPC');
-            }
-            return {
-                isValid: response.result.valid,
-                errors: response.result.errors || [],
-                warnings: response.result.warnings || []
-            };
+    validateTransfer(params) {
+        const errors = [];
+        if (!params.from) {
+            errors.push('From address is required');
         }
-        catch (error) {
-            this.logger.error('Failed to validate transfer:', error);
-            if (error instanceof Error && error.message === 'Invalid response from RPC') {
-                throw error;
-            }
-            throw new Error('Failed to validate transfer');
+        if (!params.to) {
+            errors.push('To address is required');
         }
-    }
-    async validateAddress(address) {
-        try {
-            this.logger.info('Validating address:', address);
-            const response = await this.rpcClient.call('validateaddress', [address]);
-            if (!response.result) {
-                this.logger.error('Invalid response from RPC');
-                throw new Error('Invalid response from RPC');
-            }
-            const isValid = response.result.isvalid ?? false;
-            return {
-                isValid,
-                errors: isValid ? [] : ['Invalid address'],
-                warnings: []
-            };
+        if (!params.amount) {
+            errors.push('Amount is required');
         }
-        catch (error) {
-            this.logger.error('Failed to validate address:', error);
-            if (error instanceof Error && error.message === 'Invalid response from RPC') {
-                throw error;
+        else {
+            const amount = Number(params.amount);
+            if (isNaN(amount)) {
+                errors.push('Amount must be a valid number');
             }
-            throw new Error('Failed to validate address');
-        }
-    }
-    async validateRuneId(runeId) {
-        try {
-            this.logger.info('Validating rune ID:', runeId);
-            const response = await this.rpcClient.call('validateruneid', [runeId]);
-            if (!response.result) {
-                this.logger.error('Invalid response from RPC');
-                throw new Error('Invalid response from RPC');
+            else if (amount < 0) {
+                errors.push('Amount must be a positive number');
             }
-            const exists = response.result.exists ?? false;
-            return {
-                isValid: exists,
-                errors: exists ? [] : ['Invalid rune ID'],
-                warnings: []
-            };
-        }
-        catch (error) {
-            this.logger.error('Failed to validate rune ID:', error);
-            if (error instanceof Error && error.message === 'Invalid response from RPC') {
-                throw error;
+            else if (amount === 0) {
+                errors.push('Amount must be greater than zero');
             }
-            throw new Error('Failed to validate rune ID');
         }
-    }
-    isValidAmount(amount) {
-        const numAmount = parseFloat(amount);
-        return !isNaN(numAmount) && numAmount > 0;
+        return {
+            isValid: errors.length === 0,
+            errors,
+            operations: errors.length === 0 ? [{ type: 'transfer', ...params }] : []
+        };
     }
 }
 exports.RunesValidator = RunesValidator;

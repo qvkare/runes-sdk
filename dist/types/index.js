@@ -17,7 +17,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // Bitcoin types
 __exportStar(require("./bitcoin.types"), exports);
 __exportStar(require("../config/bitcoin.config"), exports);
-// SDK types
-__exportStar(require("./config"), exports);
 __exportStar(require("./responses"), exports);
-__exportStar(require("./rune.types"), exports);
+__exportStar(require("./liquidity.types"), exports);
+__exportStar(require("./performance.types"), exports);

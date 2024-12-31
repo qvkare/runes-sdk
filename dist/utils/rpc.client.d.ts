@@ -1,20 +1,19 @@
 import { Logger } from './logger';
-import { RPCResponse } from '../types';
-interface RPCClientConfig {
-    logger: Logger;
-    timeout?: number;
-    maxRetries?: number;
-    retryDelay?: number;
+export interface RPCResponse<T = unknown> {
+    jsonrpc: string;
+    id: number;
+    result?: T;
+    error?: {
+        code: number;
+        message: string;
+    };
 }
 export declare class RPCClient {
-    readonly baseUrl: string;
-    private readonly timeout;
-    private readonly maxRetries;
-    private readonly retryDelay;
-    private readonly logger;
-    constructor(baseUrl: string, config: RPCClientConfig);
-    call<T>(method: string, params?: unknown[]): Promise<RPCResponse<T>>;
-    private makeRequest;
-    private delay;
+    private readonly url;
+    private readonly username;
+    private readonly password;
+    private readonly logger?;
+    private id;
+    constructor(url: string, username: string, password: string, logger?: Logger | undefined);
+    call<T = any>(method: string, params?: any[]): Promise<T>;
 }
-export {};

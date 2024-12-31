@@ -1,100 +1,44 @@
-import { RPCClient } from './rpc.client';
 import { Logger } from './logger';
-import { ValidationResult } from '../types';
-
-export interface Transfer {
-  runeId: string;
-  amount: string;
-  fromAddress: string;
-  toAddress: string;
-}
+import { RPCClient } from './rpc.client';
+import { ValidationResult, RuneTransfer } from '../types/rune.types';
 
 export class RunesValidator {
-  constructor(
-    private readonly rpcClient: RPCClient,
-    private readonly logger: Logger
-  ) {}
+  private readonly rpcClient: RPCClient;
+  private readonly logger: Logger;
 
-  async validateTransfer(transfer: Transfer): Promise<ValidationResult> {
-    try {
-      this.logger.info('Validating transfer:', transfer);
-      const response = await this.rpcClient.call<{
-        valid: boolean;
-        errors: string[];
-        warnings: string[];
-      }>('validatetransfer', [transfer]);
-
-      if (!response.result) {
-        this.logger.error('Invalid response from RPC');
-        throw new Error('Invalid response from RPC');
-      }
-
-      return {
-        isValid: response.result.valid,
-        errors: response.result.errors || [],
-        warnings: response.result.warnings || []
-      };
-    } catch (error) {
-      this.logger.error('Failed to validate transfer:', error);
-      if (error instanceof Error && error.message === 'Invalid response from RPC') {
-        throw error;
-      }
-      throw new Error('Failed to validate transfer');
-    }
+  constructor(rpcClient: RPCClient, logger: Logger) {
+    this.rpcClient = rpcClient;
+    this.logger = logger;
   }
 
-  async validateAddress(address: string): Promise<ValidationResult> {
-    try {
-      this.logger.info('Validating address:', address);
-      const response = await this.rpcClient.call<{ isvalid: boolean }>('validateaddress', [address]);
+  validateTransfer(params: RuneTransfer): ValidationResult {
+    const errors: string[] = [];
 
-      if (!response.result) {
-        this.logger.error('Invalid response from RPC');
-        throw new Error('Invalid response from RPC');
-      }
-
-      const isValid = response.result.isvalid ?? false;
-      return {
-        isValid,
-        errors: isValid ? [] : ['Invalid address'],
-        warnings: []
-      };
-    } catch (error) {
-      this.logger.error('Failed to validate address:', error);
-      if (error instanceof Error && error.message === 'Invalid response from RPC') {
-        throw error;
-      }
-      throw new Error('Failed to validate address');
+    if (!params.from) {
+      errors.push('From address is required');
     }
-  }
 
-  async validateRuneId(runeId: string): Promise<ValidationResult> {
-    try {
-      this.logger.info('Validating rune ID:', runeId);
-      const response = await this.rpcClient.call<{ exists: boolean }>('validateruneid', [runeId]);
-
-      if (!response.result) {
-        this.logger.error('Invalid response from RPC');
-        throw new Error('Invalid response from RPC');
-      }
-
-      const exists = response.result.exists ?? false;
-      return {
-        isValid: exists,
-        errors: exists ? [] : ['Invalid rune ID'],
-        warnings: []
-      };
-    } catch (error) {
-      this.logger.error('Failed to validate rune ID:', error);
-      if (error instanceof Error && error.message === 'Invalid response from RPC') {
-        throw error;
-      }
-      throw new Error('Failed to validate rune ID');
+    if (!params.to) {
+      errors.push('To address is required');
     }
-  }
 
-  isValidAmount(amount: string): boolean {
-    const numAmount = parseFloat(amount);
-    return !isNaN(numAmount) && numAmount > 0;
+    if (!params.amount) {
+      errors.push('Amount is required');
+    } else {
+      const amount = Number(params.amount);
+      if (isNaN(amount)) {
+        errors.push('Amount must be a valid number');
+      } else if (amount < 0) {
+        errors.push('Amount must be a positive number');
+      } else if (amount === 0) {
+        errors.push('Amount must be greater than zero');
+      }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      operations: errors.length === 0 ? [{ type: 'transfer', ...params }] : []
+    };
   }
 } 

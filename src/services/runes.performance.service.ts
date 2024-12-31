@@ -1,12 +1,26 @@
-import { RPCClient } from '../utils/rpc.client';
 import { Logger } from '../utils/logger';
-import { RunePerformanceStats } from '../types';
+import { RPCClient } from '../utils/rpc.client';
 
-interface PerformanceMetrics {
-  price: string;
-  volume24h: string;
-  marketCap: string;
-  priceChange24h: string;
+interface Metrics {
+  avgBlockTime: number;
+  transactions: number;
+  volume: string;
+  timestamp: number;
+  tps: number;
+  blockHeight: number;
+  memoryUsage: number;
+  cpuUsage: number;
+}
+
+interface RunePerformance {
+  runeId: string;
+  throughput: number;
+  latency: number;
+  errorRate: number;
+  lastUpdated: number;
+  successRate: number;
+  avgResponseTime: number;
+  peakThroughput: number;
 }
 
 export class RunesPerformanceService {
@@ -15,30 +29,63 @@ export class RunesPerformanceService {
     private readonly logger: Logger
   ) {}
 
-  public async getPerformanceMetrics(runeId: string): Promise<PerformanceMetrics> {
+  async getMetrics(): Promise<Metrics> {
     try {
-      const response = await this.rpcClient.call<PerformanceMetrics>('getperformancemetrics', [runeId]);
-      if (!response.result) {
-        throw new Error('Empty response received');
+      const response = await this.rpcClient.call('getmetrics', []);
+      if (!response || typeof response.avgBlockTime !== 'number') {
+        throw new Error('Invalid response from RPC');
       }
-      return response.result;
+
+      return {
+        avgBlockTime: response.avgBlockTime,
+        transactions: response.transactions,
+        volume: response.volume,
+        timestamp: response.timestamp,
+        tps: response.tps,
+        blockHeight: response.blockHeight,
+        memoryUsage: response.memoryUsage,
+        cpuUsage: response.cpuUsage
+      };
     } catch (error) {
-      this.logger.error('Failed to get performance metrics:', error);
-      throw new Error('Failed to get performance metrics');
+      if (error instanceof Error) {
+        this.logger.error(`Failed to get metrics: ${error.message}`);
+        throw new Error(`Failed to get metrics: ${error.message}`);
+      } else {
+        this.logger.error('Failed to get metrics: Unknown error');
+        throw new Error('Failed to get metrics: Unknown error');
+      }
     }
   }
 
-  public async getStats(runeId: string): Promise<RunePerformanceStats> {
-    this.logger.info(`Fetching performance stats for rune: ${runeId}`);
+  async getRunePerformance(runeId: string): Promise<RunePerformance> {
     try {
-      const response = await this.rpcClient.call<RunePerformanceStats>('getrunestats', [runeId]);
-      if (!response.result) {
-        throw new Error('Empty response received');
+      if (!runeId) {
+        throw new Error('Rune ID is required');
       }
-      return response.result;
+
+      const response = await this.rpcClient.call('getruneperformance', [runeId]);
+      if (!response || typeof response.throughput !== 'number') {
+        throw new Error('Invalid response from RPC');
+      }
+
+      return {
+        runeId,
+        throughput: response.throughput,
+        latency: response.latency,
+        errorRate: response.errorRate,
+        lastUpdated: response.lastUpdated,
+        successRate: response.successRate || 100 - response.errorRate,
+        avgResponseTime: response.avgResponseTime || response.latency,
+        peakThroughput: response.peakThroughput || response.throughput
+      };
     } catch (error) {
-      this.logger.error('Failed to get rune stats:', error);
-      throw new Error('Failed to get rune stats');
+      if (error instanceof Error) {
+        this.logger.error(`Failed to get rune performance: ${error.message}`);
+        throw new Error(`Failed to get rune performance: ${error.message}`);
+      } else {
+        this.logger.error('Failed to get rune performance: Unknown error');
+        throw new Error('Failed to get rune performance: Unknown error');
+      }
     }
   }
 } 

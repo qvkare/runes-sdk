@@ -1,12 +1,8 @@
-export interface LiquidityProvider {
-    address: string;
-    amount: bigint;
-}
-export interface LiquidityPool {
+export interface LiquidityPoolResponse {
     id: string;
-    rune: string;
-    totalLiquidity: bigint;
-    providers: LiquidityProvider[];
-    createdAt: Date;
-    updatedAt: Date;
+    runeId: string;
+    totalLiquidity: string;
+    totalShares: string;
+    createdAt: number;
+    updatedAt: number;
 }

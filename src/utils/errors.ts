@@ -4,8 +4,7 @@
 export class RPCError extends Error {
   constructor(
     message: string,
-    public code?: number,
-    public data?: unknown
+    public readonly code: number = -32603
   ) {
     super(message);
     this.name = 'RPCError';
@@ -16,8 +15,8 @@ export class RPCError extends Error {
  * Error thrown when RPC request times out
  */
 export class RPCTimeoutError extends RPCError {
-  constructor() {
-    super('RPC request timed out');
+  constructor(message: string) {
+    super(message, -32603);
     this.name = 'RPCTimeoutError';
   }
 }
@@ -26,11 +25,8 @@ export class RPCTimeoutError extends RPCError {
  * Error thrown when RPC request fails after max retries
  */
 export class RPCRetryError extends RPCError {
-  constructor(
-    message: string,
-    public readonly attempts: number
-  ) {
-    super(message);
+  constructor(message: string) {
+    super(message, -32603);
     this.name = 'RPCRetryError';
   }
 }
@@ -43,22 +39,26 @@ export class RPCResponseError extends RPCError {
     message: string,
     public readonly response: Record<string, unknown>
   ) {
-    super(message);
+    super(message, -32603);
     this.name = 'RPCResponseError';
   }
 }
 
-export class ValidationError extends Error {
-  constructor(
-    message: string,
-    public errors: string[]
-  ) {
+export class RunesSDKError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RunesSDKError';
+  }
+}
+
+export class ValidationError extends RunesSDKError {
+  constructor(message: string) {
     super(message);
     this.name = 'ValidationError';
   }
 }
 
-export class NetworkError extends Error {
+export class NetworkError extends RunesSDKError {
   constructor(message: string) {
     super(message);
     this.name = 'NetworkError';
@@ -86,5 +86,12 @@ export class ServiceError extends Error {
   ) {
     super(message);
     this.name = 'ServiceError';
+  }
+}
+
+export class SecurityError extends RunesSDKError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SecurityError';
   }
 } 

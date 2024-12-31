@@ -1,6 +1,20 @@
-import { RPCClient } from '../utils/rpc.client';
 import { Logger } from '../utils/logger';
-import { LiquidityPool } from '../types';
+import { RPCClient } from '../utils/rpc.client';
+
+interface Pool {
+  poolId: string;
+  runeId: string;
+  liquidity: number;
+  price: number;
+  volume24h: number;
+  timestamp: number;
+}
+
+interface PoolCreationParams {
+  runeId: string;
+  initialLiquidity: number;
+  initialPrice: number;
+}
 
 export class RunesLiquidityService {
   constructor(
@@ -8,43 +22,81 @@ export class RunesLiquidityService {
     private readonly logger: Logger
   ) {}
 
-  async getPoolInfo(runeId: string): Promise<LiquidityPool> {
+  async createPool(params: PoolCreationParams): Promise<Pool> {
     try {
-      this.logger.info('Getting liquidity pool info for rune:', runeId);
-      const response = await this.rpcClient.call<LiquidityPool>('getpoolinfo', [runeId]);
-
-      if (!response.result) {
-        this.logger.error('Invalid response from RPC');
+      const response = await this.rpcClient.call('createpool', [params]);
+      if (!response || !response.poolId) {
         throw new Error('Invalid response from RPC');
       }
 
-      return response.result;
+      return {
+        poolId: response.poolId,
+        runeId: response.runeId,
+        liquidity: response.liquidity,
+        price: response.price,
+        volume24h: response.volume24h,
+        timestamp: response.timestamp
+      };
     } catch (error) {
-      this.logger.error('Failed to get pool info:', error);
-      if (error instanceof Error && error.message === 'Invalid response from RPC') {
-        throw error;
+      if (error instanceof Error) {
+        this.logger.error(`Failed to create pool: ${error.message}`);
+        throw new Error(`Failed to create pool: ${error.message}`);
+      } else {
+        this.logger.error('Failed to create pool: Unknown error');
+        throw new Error('Failed to create pool: Unknown error');
       }
-      throw new Error('Failed to get pool info');
     }
   }
 
-  async addLiquidity(runeId: string, amount: string): Promise<{ txId: string }> {
+  async addLiquidity(params: { poolId: string; amount: number }): Promise<Pool> {
     try {
-      this.logger.info('Adding liquidity to pool:', { runeId, amount });
-      const response = await this.rpcClient.call<{ txId: string }>('addliquidity', [runeId, amount]);
-
-      if (!response.result) {
-        this.logger.error('Invalid response from RPC');
+      const response = await this.rpcClient.call('addliquidity', [params]);
+      if (!response || !response.poolId) {
         throw new Error('Invalid response from RPC');
       }
 
-      return response.result;
+      return {
+        poolId: response.poolId,
+        runeId: response.runeId,
+        liquidity: response.liquidity,
+        price: response.price,
+        volume24h: response.volume24h,
+        timestamp: response.timestamp
+      };
     } catch (error) {
-      this.logger.error('Failed to add liquidity:', error);
-      if (error instanceof Error && error.message === 'Invalid response from RPC') {
-        throw error;
+      if (error instanceof Error) {
+        this.logger.error(`Failed to add liquidity: ${error.message}`);
+        throw new Error(`Failed to add liquidity: ${error.message}`);
+      } else {
+        this.logger.error('Failed to add liquidity: Unknown error');
+        throw new Error('Failed to add liquidity: Unknown error');
       }
-      throw new Error('Failed to add liquidity');
+    }
+  }
+
+  async getPool(poolId: string): Promise<Pool> {
+    try {
+      const response = await this.rpcClient.call('getpool', [poolId]);
+      if (!response || !response.poolId) {
+        throw new Error('Invalid response from RPC');
+      }
+
+      return {
+        poolId: response.poolId,
+        runeId: response.runeId,
+        liquidity: response.liquidity,
+        price: response.price,
+        volume24h: response.volume24h,
+        timestamp: response.timestamp
+      };
+    } catch (error) {
+      if (error instanceof Error) {
+        this.logger.error(`Failed to get pool: ${error.message}`);
+        throw new Error(`Failed to get pool: ${error.message}`);
+      } else {
+        this.logger.error('Failed to get pool: Unknown error');
+        throw new Error('Failed to get pool: Unknown error');
+      }
     }
   }
 } 

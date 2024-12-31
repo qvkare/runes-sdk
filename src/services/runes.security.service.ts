@@ -1,57 +1,81 @@
 import { RPCClient } from '../utils/rpc.client';
 import { Logger } from '../utils/logger';
 
+interface SecurityVerification {
+  txId: string;
+  isValid: boolean;
+  signatures: string[];
+  timestamp: number;
+  reason?: string;
+}
+
+interface SecurityCheck {
+  runeId: string;
+  isSecure: boolean;
+  vulnerabilities: string[];
+  lastAudit: number;
+}
+
 export class RunesSecurityService {
   constructor(
     private readonly rpcClient: RPCClient,
     private readonly logger: Logger
   ) {}
 
-  async verifyRune(runeId: string): Promise<boolean> {
+  async verifyTransaction(txId: string): Promise<SecurityVerification> {
     try {
-      this.logger.info('Verifying rune:', runeId);
-      const response = await this.rpcClient.call<{ verified: boolean }>('verifyrune', [runeId]);
-      
-      if (!response.result) {
-        this.logger.error('Invalid response from RPC');
+      if (!txId) {
+        throw new Error('Transaction ID is required');
+      }
+
+      const response = await this.rpcClient.call('verifytransaction', [txId]);
+      if (!response || typeof response.isValid !== 'boolean') {
         throw new Error('Invalid response from RPC');
       }
-      
-      if (!response.result.verified) {
-        this.logger.warn('Rune verification failed:', runeId);
-      }
-      
-      return response.result.verified;
+
+      return {
+        txId,
+        isValid: response.isValid,
+        signatures: response.signatures || [],
+        timestamp: response.timestamp,
+        reason: response.reason
+      };
     } catch (error) {
-      this.logger.error('Failed to verify rune:', error);
-      if (error instanceof Error && error.message === 'Invalid response from RPC') {
-        throw error;
+      if (error instanceof Error) {
+        this.logger.error(`Failed to verify transaction: ${error.message}`);
+        throw new Error(`Failed to verify transaction: ${error.message}`);
+      } else {
+        this.logger.error('Failed to verify transaction: Unknown error');
+        throw new Error('Failed to verify transaction: Unknown error');
       }
-      throw new Error('Failed to verify rune');
     }
   }
 
-  async checkSecurity(runeId: string): Promise<{ secure: boolean; issues: string[] }> {
+  async checkRuneSecurity(runeId: string): Promise<SecurityCheck> {
     try {
-      this.logger.info('Checking security for rune:', runeId);
-      const response = await this.rpcClient.call<{ secure: boolean; issues: string[] }>('checksecurity', [runeId]);
-      
-      if (!response.result) {
-        this.logger.error('Invalid response from RPC');
+      if (!runeId) {
+        throw new Error('Rune ID is required');
+      }
+
+      const response = await this.rpcClient.call('checkrunesecurity', [runeId]);
+      if (!response || typeof response.isSecure !== 'boolean') {
         throw new Error('Invalid response from RPC');
       }
-      
-      if (!response.result.secure) {
-        this.logger.warn('Security issues found for rune:', runeId, response.result.issues);
-      }
-      
-      return response.result;
+
+      return {
+        runeId: response.runeId,
+        isSecure: response.isSecure,
+        vulnerabilities: response.vulnerabilities || [],
+        lastAudit: response.lastAudit
+      };
     } catch (error) {
-      this.logger.error('Failed to check security:', error);
-      if (error instanceof Error && error.message === 'Invalid response from RPC') {
-        throw error;
+      if (error instanceof Error) {
+        this.logger.error(`Failed to check rune security: ${error.message}`);
+        throw new Error(`Failed to check rune security: ${error.message}`);
+      } else {
+        this.logger.error('Failed to check rune security: Unknown error');
+        throw new Error('Failed to check rune security: Unknown error');
       }
-      throw new Error('Failed to check security');
     }
   }
 } 

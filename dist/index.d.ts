@@ -1,40 +1,18 @@
-import { RPCClient } from './utils/rpc.client';
 import { Logger } from './utils/logger';
+import { RPCClient } from './utils/rpc.client';
 import { RunesValidator } from './utils/runes.validator';
-import { RunesService } from './services/runes.service';
-import { RunesOrderService } from './services/runes.order.service';
-import { RunesSecurityService } from './services/runes.security.service';
-import { RunesPerformanceService } from './services/runes.performance.service';
-import { RunesHistoryService } from './services/runes.history.service';
-import { RunesLiquidityService } from './services/runes.liquidity.service';
 import { RunesBatchService } from './services/runes.batch.service';
-export interface SDKConfig {
-    baseUrl: string;
-    logger?: Logger;
-    timeout?: number;
-    maxRetries?: number;
-    retryDelay?: number;
-}
+import { RunesHistoryService } from './services/runes.history.service';
+import { RuneInfo, RuneTransaction, RuneTransfer, BatchTransfer, BatchProcessResult } from './types/rune.types';
+export { Logger, RPCClient, RunesValidator, RunesBatchService, RunesHistoryService, RuneInfo, RuneTransaction, RuneTransfer, BatchTransfer, BatchProcessResult };
 export declare class RunesSDK {
-    readonly rpcClient: RPCClient;
-    readonly validator: RunesValidator;
-    readonly runesService: RunesService;
-    readonly orderService: RunesOrderService;
-    readonly securityService: RunesSecurityService;
-    readonly performanceService: RunesPerformanceService;
-    readonly historyService: RunesHistoryService;
-    readonly liquidityService: RunesLiquidityService;
-    readonly batchService: RunesBatchService;
-    constructor(config: SDKConfig);
+    private readonly rpcClient;
+    private readonly logger;
+    private readonly validator;
+    private readonly batchService;
+    private readonly historyService;
+    constructor(host: string, username: string, password: string, logger: Logger);
+    getTransactionHistory(address: string, limit?: number, offset?: number): Promise<RuneTransaction[]>;
+    getTransaction(txid: string): Promise<RuneTransaction>;
+    processBatch(transfers: BatchTransfer[]): Promise<BatchProcessResult>;
 }
-export * from './types';
-export * from './utils/logger';
-export * from './utils/rpc.client';
-export * from './utils/runes.validator';
-export * from './services/runes.service';
-export * from './services/runes.order.service';
-export * from './services/runes.security.service';
-export * from './services/runes.performance.service';
-export * from './services/runes.history.service';
-export * from './services/runes.liquidity.service';
-export * from './services/runes.batch.service';

@@ -1,146 +1,106 @@
 import { RunesBatchService } from '../runes.batch.service';
-import { Logger } from '../../utils/logger';
-import { RPCClient } from '../../utils/rpc.client';
-import { createMockLogger, createMockRpcClient } from '../../utils/__tests__/test.utils';
-import { RunesValidator } from '../../utils/runes.validator';
-
-interface Transfer {
-  runeId: string;
-  amount: string;
-  fromAddress: string;
-  toAddress: string;
-}
+import { createMockLogger, createMockRpcClient, createMockValidator } from '../../utils/test.utils';
+import { BatchTransfer } from '../../types/rune.types';
 
 describe('RunesBatchService', () => {
-  let batchService: RunesBatchService;
-  let mockRpcClient: jest.Mocked<RPCClient>;
-  let mockLogger: jest.Mocked<Logger>;
-  let mockValidator: jest.Mocked<RunesValidator>;
+  let service: RunesBatchService;
+  let mockRpcClient: any;
+  let mockLogger: any;
+  let mockValidator: any;
 
   beforeEach(() => {
-    mockLogger = createMockLogger('RunesBatchService');
-    mockRpcClient = createMockRpcClient(mockLogger);
-    mockValidator = {
-      validateTransfer: jest.fn(),
-      validateTransaction: jest.fn(),
-      validateAddress: jest.fn(),
-      validateRuneId: jest.fn(),
-      isValidAmount: jest.fn(),
-      logger: mockLogger,
-      rpcClient: mockRpcClient
-    } as unknown as jest.Mocked<RunesValidator>;
-    batchService = new RunesBatchService(mockRpcClient, mockLogger, mockValidator);
+    mockRpcClient = createMockRpcClient();
+    mockLogger = createMockLogger();
+    mockValidator = createMockValidator();
+    service = new RunesBatchService(mockRpcClient, mockLogger, mockValidator);
   });
 
-  describe('submitBatch', () => {
-    const transfers: Transfer[] = [
+  describe('processBatch', () => {
+    const validTransfers: BatchTransfer[] = [
       {
-        runeId: 'rune123',
+        from: 'addr1',
+        to: 'addr2',
         amount: '100',
-        fromAddress: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-        toAddress: '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX'
+        symbol: 'RUNE'
       },
       {
-        runeId: 'rune456',
+        from: 'addr3',
+        to: 'addr4',
         amount: '200',
-        fromAddress: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-        toAddress: '1HLoD9E4SDFFPDiYfNYnkBLQ85Y51J3Zb1'
+        symbol: 'RUNE'
       }
     ];
 
-    it('should submit batch successfully', async () => {
-      mockValidator.validateTransfer.mockResolvedValue({
-        isValid: true,
-        errors: [],
-        warnings: []
-      });
+    it('should process batch successfully', async () => {
+      mockValidator.validateTransfer.mockReturnValue({ isValid: true, errors: [] });
+      mockRpcClient.call.mockResolvedValue({ txid: 'tx123' });
 
-      const mockResponse = {
-        result: {
-          batchId: 'batch123',
-          status: 'submitted',
-          timestamp: '2024-01-01T00:00:00Z'
-        }
-      };
+      const result = await service.processBatch(validTransfers);
 
-      mockRpcClient.call.mockResolvedValueOnce(mockResponse);
-
-      const result = await batchService.submitBatch(transfers);
-      expect(result).toEqual(mockResponse.result);
-      expect(mockValidator.validateTransfer).toHaveBeenCalledTimes(2);
-      expect(mockRpcClient.call).toHaveBeenCalledWith('submitbatch', [transfers]);
+      expect(result.successful.length).toBe(2);
+      expect(result.failed.length).toBe(0);
+      expect(result.totalTransfers).toBe(2);
+      expect(result.successfulTransfers).toBe(2);
+      expect(result.failedTransfers).toBe(0);
+      expect(result.errors.length).toBe(0);
     });
 
-    it('should handle validation errors', async () => {
-      mockValidator.validateTransfer.mockResolvedValue({
+    it('should handle validation failures', async () => {
+      mockValidator.validateTransfer.mockReturnValue({
         isValid: false,
-        errors: ['Invalid amount'],
-        warnings: []
+        errors: ['Invalid amount']
       });
 
-      await expect(batchService.submitBatch(transfers)).rejects.toThrow('Invalid amount');
-      expect(mockRpcClient.call).not.toHaveBeenCalled();
+      const result = await service.processBatch(validTransfers);
+
+      expect(result.successful.length).toBe(0);
+      expect(result.failed.length).toBe(2);
+      expect(result.totalTransfers).toBe(2);
+      expect(result.successfulTransfers).toBe(0);
+      expect(result.failedTransfers).toBe(2);
+      expect(result.errors.length).toBe(2);
+      expect(result.errors[0].message).toBe('Validation failed: Invalid amount');
     });
 
     it('should handle RPC errors', async () => {
-      mockValidator.validateTransfer.mockResolvedValue({
-        isValid: true,
-        errors: [],
-        warnings: []
-      });
+      mockValidator.validateTransfer.mockReturnValue({ isValid: true, errors: [] });
+      mockRpcClient.call.mockRejectedValue(new Error('RPC error'));
 
-      mockRpcClient.call.mockRejectedValueOnce(new Error('RPC error'));
+      const result = await service.processBatch(validTransfers);
 
-      await expect(batchService.submitBatch(transfers)).rejects.toThrow('Failed to submit batch');
-      expect(mockLogger.error).toHaveBeenCalled();
+      expect(result.successful.length).toBe(0);
+      expect(result.failed.length).toBe(2);
+      expect(result.totalTransfers).toBe(2);
+      expect(result.successfulTransfers).toBe(0);
+      expect(result.failedTransfers).toBe(2);
+      expect(result.errors.length).toBe(2);
+      expect(result.errors[0].message).toBe('RPC error');
     });
 
-    it('should handle invalid RPC response in submitBatch', async () => {
-      mockValidator.validateTransfer.mockResolvedValue({
-        isValid: true,
-        errors: [],
-        warnings: []
-      });
+    it('should handle unknown errors', async () => {
+      mockValidator.validateTransfer.mockReturnValue({ isValid: true, errors: [] });
+      mockRpcClient.call.mockRejectedValue('Unknown error');
 
-      mockRpcClient.call.mockResolvedValueOnce({ result: null });
+      const result = await service.processBatch(validTransfers);
 
-      await expect(batchService.submitBatch(transfers)).rejects.toThrow('Invalid response from RPC');
-      expect(mockLogger.error).toHaveBeenCalledWith('Invalid response from RPC');
-    });
-  });
-
-  describe('getBatchStatus', () => {
-    it('should get batch status successfully', async () => {
-      const batchId = 'batch123';
-      const mockResponse = {
-        result: {
-          batchId: 'batch123',
-          status: 'completed',
-          timestamp: '2024-01-01T00:00:00Z'
-        }
-      };
-
-      mockRpcClient.call.mockResolvedValueOnce(mockResponse);
-
-      const result = await batchService.getBatchStatus(batchId);
-      expect(result).toEqual(mockResponse.result);
-      expect(mockRpcClient.call).toHaveBeenCalledWith('getbatchstatus', [batchId]);
+      expect(result.successful.length).toBe(0);
+      expect(result.failed.length).toBe(2);
+      expect(result.totalTransfers).toBe(2);
+      expect(result.successfulTransfers).toBe(0);
+      expect(result.failedTransfers).toBe(2);
+      expect(result.errors.length).toBe(2);
+      expect(result.errors[0].message).toBe('Unknown error occurred');
     });
 
-    it('should handle RPC errors', async () => {
-      const batchId = 'invalid_batch';
-      mockRpcClient.call.mockRejectedValueOnce(new Error('RPC error'));
+    it('should handle empty transfers array', async () => {
+      const result = await service.processBatch([]);
 
-      await expect(batchService.getBatchStatus(batchId)).rejects.toThrow('Failed to get batch status');
-      expect(mockLogger.error).toHaveBeenCalled();
-    });
-
-    it('should handle invalid RPC response in getBatchStatus', async () => {
-      const batchId = 'batch123';
-      mockRpcClient.call.mockResolvedValueOnce({ result: null });
-
-      await expect(batchService.getBatchStatus(batchId)).rejects.toThrow('Invalid response from RPC');
-      expect(mockLogger.error).toHaveBeenCalledWith('Invalid response from RPC');
+      expect(result.successful.length).toBe(0);
+      expect(result.failed.length).toBe(0);
+      expect(result.totalTransfers).toBe(0);
+      expect(result.successfulTransfers).toBe(0);
+      expect(result.failedTransfers).toBe(0);
+      expect(result.errors.length).toBe(0);
     });
   });
 }); 

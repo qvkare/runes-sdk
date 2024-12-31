@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.validateBitcoinConfig = exports.defaultBitcoinConfig = void 0;
+exports.defaultBitcoinConfig = void 0;
+exports.validateBitcoinConfig = validateBitcoinConfig;
 /**
  * Default Bitcoin configuration values
  */
@@ -29,4 +30,3 @@ function validateBitcoinConfig(config) {
         ...config
     };
 }
-exports.validateBitcoinConfig = validateBitcoinConfig;

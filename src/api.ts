@@ -1,44 +1,72 @@
 import { RPCClient } from './utils/rpc.client';
-import { RunesValidator } from './utils/runes.validator';
-import { RunesService } from './services/runes.service';
-import { RunesOrderService } from './services/runes.order.service';
-import { RunesHistoryService } from './services/runes.history.service';
-import { RunesLiquidityService } from './services/runes.liquidity.service';
-import { RunesBatchService } from './services/runes.batch.service';
-import { RunesPerformanceService } from './services/runes.performance.service';
 import { Logger } from './utils/logger';
-import { SDKConfig } from './types';
+import { RunesValidator } from './utils/runes.validator';
+import { RuneInfo, RuneTransaction, RuneTransfer } from './types/rune.types';
 
 export class RunesAPI {
-  private readonly rpcClient: RPCClient;
-  private readonly validator: RunesValidator;
-  private readonly logger: Logger;
+  constructor(
+    private readonly rpcClient: RPCClient,
+    private readonly validator: RunesValidator,
+    private readonly logger: Logger
+  ) {}
 
-  public readonly service: RunesService;
-  public readonly order: RunesOrderService;
-  public readonly history: RunesHistoryService;
-  public readonly liquidity: RunesLiquidityService;
-  public readonly batch: RunesBatchService;
-  public readonly performance: RunesPerformanceService;
+  async createRune(params: {
+    name: string;
+    symbol: string;
+    totalSupply: string;
+    decimals: number;
+    owner: string;
+    metadata?: Record<string, any>;
+  }): Promise<RuneInfo> {
+    try {
+      const response = await this.rpcClient.call('createrune', [params]);
+      return response as RuneInfo;
+    } catch (error) {
+      const errorMessage = `Failed to create rune: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      this.logger.error(errorMessage);
+      throw new Error(errorMessage);
+    }
+  }
 
-  constructor(config: SDKConfig) {
-    this.logger = config.logger || new Logger('RunesAPI');
-    this.rpcClient = new RPCClient(
-      config.baseUrl,
-      {
-        logger: this.logger,
-        timeout: config.timeout,
-        maxRetries: config.maxRetries,
-        retryDelay: config.retryDelay
+  async transferRune(params: RuneTransfer): Promise<RuneTransaction> {
+    try {
+      const validationResult = await this.validator.validateTransfer({
+        from: params.from,
+        to: params.to,
+        amount: params.amount
+      });
+      if (!validationResult.isValid) {
+        throw new Error(validationResult.errors.join(', '));
       }
-    );
 
-    this.validator = new RunesValidator(this.rpcClient, this.logger);
-    this.service = new RunesService(this.rpcClient, this.logger, this.validator);
-    this.order = new RunesOrderService(this.rpcClient, this.logger);
-    this.history = new RunesHistoryService(this.rpcClient, this.logger);
-    this.liquidity = new RunesLiquidityService(this.rpcClient, this.logger);
-    this.batch = new RunesBatchService(this.rpcClient, this.logger, this.validator);
-    this.performance = new RunesPerformanceService(this.rpcClient, this.logger);
+      const response = await this.rpcClient.call('transferrune', [params]);
+      return response as RuneTransaction;
+    } catch (error) {
+      const errorMessage = `Failed to transfer rune: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      this.logger.error(errorMessage);
+      throw new Error(errorMessage);
+    }
+  }
+
+  async getRuneInfo(runeId: string): Promise<RuneInfo> {
+    try {
+      const response = await this.rpcClient.call('getruneinfo', [runeId]);
+      return response as RuneInfo;
+    } catch (error) {
+      const errorMessage = `Failed to get rune info: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      this.logger.error(errorMessage);
+      throw new Error(errorMessage);
+    }
+  }
+
+  async getRuneBalance(runeId: string, address: string): Promise<string> {
+    try {
+      const response = await this.rpcClient.call('getrunebalance', [runeId, address]);
+      return response.balance;
+    } catch (error) {
+      const errorMessage = `Failed to get rune balance: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      this.logger.error(errorMessage);
+      throw new Error(errorMessage);
+    }
   }
 } 

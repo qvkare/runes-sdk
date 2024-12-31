@@ -1,31 +1,63 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RunesAPI = void 0;
-const rpc_client_1 = require("./utils/rpc.client");
-const runes_validator_1 = require("./utils/runes.validator");
-const runes_service_1 = require("./services/runes.service");
-const runes_order_service_1 = require("./services/runes.order.service");
-const runes_history_service_1 = require("./services/runes.history.service");
-const runes_liquidity_service_1 = require("./services/runes.liquidity.service");
-const runes_batch_service_1 = require("./services/runes.batch.service");
-const runes_performance_service_1 = require("./services/runes.performance.service");
-const logger_1 = require("./utils/logger");
 class RunesAPI {
-    constructor(config) {
-        this.logger = config.logger || new logger_1.Logger('RunesAPI');
-        this.rpcClient = new rpc_client_1.RPCClient(config.baseUrl, {
-            logger: this.logger,
-            timeout: config.timeout,
-            maxRetries: config.maxRetries,
-            retryDelay: config.retryDelay
-        });
-        this.validator = new runes_validator_1.RunesValidator(this.rpcClient, this.logger);
-        this.service = new runes_service_1.RunesService(this.rpcClient, this.logger, this.validator);
-        this.order = new runes_order_service_1.RunesOrderService(this.rpcClient, this.logger);
-        this.history = new runes_history_service_1.RunesHistoryService(this.rpcClient, this.logger);
-        this.liquidity = new runes_liquidity_service_1.RunesLiquidityService(this.rpcClient, this.logger);
-        this.batch = new runes_batch_service_1.RunesBatchService(this.rpcClient, this.logger, this.validator);
-        this.performance = new runes_performance_service_1.RunesPerformanceService(this.rpcClient, this.logger);
+    constructor(rpcClient, validator, logger) {
+        this.rpcClient = rpcClient;
+        this.validator = validator;
+        this.logger = logger;
+    }
+    async createRune(params) {
+        try {
+            const response = await this.rpcClient.call('createrune', [params]);
+            return response;
+        }
+        catch (error) {
+            const errorMessage = `Failed to create rune: ${error instanceof Error ? error.message : 'Unknown error'}`;
+            this.logger.error(errorMessage);
+            throw new Error(errorMessage);
+        }
+    }
+    async transferRune(params) {
+        try {
+            const validationResult = await this.validator.validateTransfer({
+                from: params.from,
+                to: params.to,
+                amount: params.amount
+            });
+            if (!validationResult.isValid) {
+                throw new Error(validationResult.errors.join(', '));
+            }
+            const response = await this.rpcClient.call('transferrune', [params]);
+            return response;
+        }
+        catch (error) {
+            const errorMessage = `Failed to transfer rune: ${error instanceof Error ? error.message : 'Unknown error'}`;
+            this.logger.error(errorMessage);
+            throw new Error(errorMessage);
+        }
+    }
+    async getRuneInfo(runeId) {
+        try {
+            const response = await this.rpcClient.call('getruneinfo', [runeId]);
+            return response;
+        }
+        catch (error) {
+            const errorMessage = `Failed to get rune info: ${error instanceof Error ? error.message : 'Unknown error'}`;
+            this.logger.error(errorMessage);
+            throw new Error(errorMessage);
+        }
+    }
+    async getRuneBalance(runeId, address) {
+        try {
+            const response = await this.rpcClient.call('getrunebalance', [runeId, address]);
+            return response.balance;
+        }
+        catch (error) {
+            const errorMessage = `Failed to get rune balance: ${error instanceof Error ? error.message : 'Unknown error'}`;
+            this.logger.error(errorMessage);
+            throw new Error(errorMessage);
+        }
     }
 }
 exports.RunesAPI = RunesAPI;

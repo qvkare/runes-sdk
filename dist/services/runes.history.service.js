@@ -6,22 +6,31 @@ class RunesHistoryService {
         this.rpcClient = rpcClient;
         this.logger = logger;
     }
-    async getTransactionHistory(runeId) {
+    async getTransactionHistory(address, limit, offset) {
         try {
-            this.logger.info('Getting transaction history for rune:', runeId);
-            const response = await this.rpcClient.call('gettransactionhistory', [runeId]);
-            if (!response.result) {
-                this.logger.error('Invalid response from RPC');
-                throw new Error('Invalid response from RPC');
-            }
-            return response.result;
+            const params = [address];
+            if (limit !== undefined)
+                params.push(limit.toString());
+            if (offset !== undefined)
+                params.push(offset.toString());
+            const response = await this.rpcClient.call('gettransactionhistory', params);
+            return response;
         }
         catch (error) {
-            this.logger.error('Failed to get transaction history:', error);
-            if (error instanceof Error && error.message === 'Invalid response from RPC') {
-                throw error;
-            }
-            throw new Error('Failed to get transaction history');
+            const errorMessage = `Failed to get transaction history: ${error instanceof Error ? error.message : 'Unknown error'}`;
+            this.logger.error(errorMessage);
+            throw new Error(errorMessage);
+        }
+    }
+    async getTransaction(txid) {
+        try {
+            const response = await this.rpcClient.call('gettransaction', [txid]);
+            return response;
+        }
+        catch (error) {
+            const errorMessage = `Failed to get transaction: ${error instanceof Error ? error.message : 'Unknown error'}`;
+            this.logger.error(errorMessage);
+            throw new Error(errorMessage);
         }
     }
 }

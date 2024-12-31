@@ -1,48 +1,29 @@
-import { Logger } from '../logger';
-import { RPCClient } from '../rpc.client';
-import { RPCResponse } from '../../types';
+import { Logger, LogLevel } from '../logger';
 
-export const createMockLogger = (context = 'TestContext'): jest.Mocked<Logger> => {
+export function createMockLogger(): jest.Mocked<Logger> {
   return {
-    context,
-    debug: jest.fn(),
     info: jest.fn(),
     warn: jest.fn(),
-    error: jest.fn()
+    error: jest.fn(),
+    debug: jest.fn(),
+    context: 'TestContext',
+    level: LogLevel.INFO,
+    shouldLog: jest.fn().mockReturnValue(true)
   } as jest.Mocked<Logger>;
-};
+}
 
-export const createMockRpcClient = (logger: Logger): jest.Mocked<RPCClient> => {
-  const mockClient = {
-    baseUrl: 'http://localhost:8332',
-    logger,
-    timeout: 5000,
-    maxRetries: 3,
-    retryDelay: 1000,
-    call: jest.fn(),
-    makeRequest: jest.fn(),
-    delay: jest.fn()
-  };
-
-  return mockClient as unknown as jest.Mocked<RPCClient>;
-};
-
-export const createMockRpcResponse = <T>(data: T): RPCResponse<T> => {
+export function createMockRPCClient() {
   return {
-    result: data
+    call: jest.fn()
   };
-};
+}
 
-export const createMockValidationResponse = (isValid: boolean, errors: string[] = [], warnings: string[] = []): RPCResponse<{
-  valid: boolean;
-  errors: string[];
-  warnings: string[];
-}> => {
+export function createMockValidator() {
   return {
-    result: {
-      valid: isValid,
-      errors,
-      warnings
-    }
+    validateTransfer: jest.fn(),
+    validateAddress: jest.fn(),
+    validateAmount: jest.fn(),
+    validateRuneId: jest.fn(),
+    validateRuneExists: jest.fn()
   };
-}; 
+} 

@@ -1,30 +1,39 @@
-import { RPCClient } from '../utils/rpc.client';
 import { Logger } from '../utils/logger';
-import { TransactionHistory } from '../types';
+import { RPCClient } from '../utils/rpc.client';
+import { RuneTransaction } from '../types/rune.types';
 
 export class RunesHistoryService {
-  constructor(
-    private readonly rpcClient: RPCClient,
-    private readonly logger: Logger
-  ) {}
+  private readonly rpcClient: RPCClient;
+  private readonly logger: Logger;
 
-  async getTransactionHistory(runeId: string): Promise<TransactionHistory[]> {
+  constructor(rpcClient: RPCClient, logger: Logger) {
+    this.rpcClient = rpcClient;
+    this.logger = logger;
+  }
+
+  async getTransactionHistory(address: string, limit?: number, offset?: number): Promise<RuneTransaction[]> {
     try {
-      this.logger.info('Getting transaction history for rune:', runeId);
-      const response = await this.rpcClient.call<TransactionHistory[]>('gettransactionhistory', [runeId]);
+      const params = [address];
+      if (limit !== undefined) params.push(limit.toString());
+      if (offset !== undefined) params.push(offset.toString());
 
-      if (!response.result) {
-        this.logger.error('Invalid response from RPC');
-        throw new Error('Invalid response from RPC');
-      }
-
-      return response.result;
+      const response = await this.rpcClient.call('gettransactionhistory', params);
+      return response as RuneTransaction[];
     } catch (error) {
-      this.logger.error('Failed to get transaction history:', error);
-      if (error instanceof Error && error.message === 'Invalid response from RPC') {
-        throw error;
-      }
-      throw new Error('Failed to get transaction history');
+      const errorMessage = `Failed to get transaction history: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      this.logger.error(errorMessage);
+      throw new Error(errorMessage);
+    }
+  }
+
+  async getTransaction(txid: string): Promise<RuneTransaction> {
+    try {
+      const response = await this.rpcClient.call('gettransaction', [txid]);
+      return response as RuneTransaction;
+    } catch (error) {
+      const errorMessage = `Failed to get transaction: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      this.logger.error(errorMessage);
+      throw new Error(errorMessage);
     }
   }
 } 

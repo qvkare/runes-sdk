@@ -7,49 +7,46 @@ class RunesBatchService {
         this.logger = logger;
         this.validator = validator;
     }
-    async submitBatch(transfers) {
-        this.logger.info('Validating batch transfers:', transfers);
+    async processBatch(transfers) {
+        const result = {
+            successful: [],
+            failed: [],
+            totalTransfers: transfers.length,
+            successfulTransfers: 0,
+            failedTransfers: 0,
+            errors: []
+        };
         for (const transfer of transfers) {
-            const validationResult = await this.validator.validateTransfer(transfer);
-            if (!validationResult.isValid) {
-                this.logger.warn('Transfer validation failed:', validationResult.errors);
-                throw new Error(validationResult.errors[0]);
+            try {
+                const validationResult = this.validator.validateTransfer(transfer);
+                if (!validationResult.isValid) {
+                    const error = new Error(`Validation failed: ${validationResult.errors.join(', ')}`);
+                    result.failed.push({
+                        transfer,
+                        error
+                    });
+                    result.errors.push(error);
+                    result.failedTransfers++;
+                    continue;
+                }
+                const response = await this.rpcClient.call('transfer', [transfer]);
+                result.successful.push({
+                    transfer,
+                    txid: response.txid
+                });
+                result.successfulTransfers++;
+            }
+            catch (error) {
+                const processedError = error instanceof Error ? error : new Error('Unknown error occurred');
+                result.failed.push({
+                    transfer,
+                    error: processedError
+                });
+                result.errors.push(processedError);
+                result.failedTransfers++;
             }
         }
-        try {
-            this.logger.info('Submitting batch:', transfers);
-            const response = await this.rpcClient.call('submitbatch', [transfers]);
-            if (!response.result) {
-                this.logger.error('Invalid response from RPC');
-                throw new Error('Invalid response from RPC');
-            }
-            return response.result;
-        }
-        catch (error) {
-            this.logger.error('Failed to submit batch:', error);
-            if (error instanceof Error && error.message === 'Invalid response from RPC') {
-                throw error;
-            }
-            throw new Error('Failed to submit batch');
-        }
-    }
-    async getBatchStatus(batchId) {
-        try {
-            this.logger.info('Getting batch status:', batchId);
-            const response = await this.rpcClient.call('getbatchstatus', [batchId]);
-            if (!response.result) {
-                this.logger.error('Invalid response from RPC');
-                throw new Error('Invalid response from RPC');
-            }
-            return response.result;
-        }
-        catch (error) {
-            this.logger.error('Failed to get batch status:', error);
-            if (error instanceof Error && error.message === 'Invalid response from RPC') {
-                throw error;
-            }
-            throw new Error('Failed to get batch status');
-        }
+        return result;
     }
 }
 exports.RunesBatchService = RunesBatchService;

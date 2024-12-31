@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.8] - 2024-01-17
+
+### Fixed
+- Fixed RPC call mock implementation
+- Fixed TypeScript type errors in test files
+- Removed unused imports
+- Aligned test expectations with mock responses
+
+### Changed
+- Replaced `@ts-ignore` with `@ts-expect-error`
+- Added underscore (`_`) prefix for unused parameters
+- Improved test variable naming for better clarity
+
+### Improved
+- Enhanced test coverage metrics:
+  - Statements: 100%
+  - Branch: 97.24%
+  - Functions: 94.66%
+  - Lines: 100%
+
 ## [0.1.7] - 2024-12-31
 
 ### Changed

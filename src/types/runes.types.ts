@@ -1,5 +1,5 @@
 /**
- * Temel tip tanımlamaları
+ * Basic type definitions
  */
 
 // Runes data structure
@@ -62,11 +62,11 @@ export interface RunesValidationResult {
 
 // Performance metrics
 export interface PerformanceMetrics {
-  averageResponseTime: number;
+  tps: number;
+  avgConfirmationTime: number;
   successRate: number;
-  errorRate: number;
-  throughput: number;
-  activeConnections: number;
+  activeWallets: number;
+  timestamp: number;
 }
 
 // Security configuration
@@ -83,9 +83,12 @@ export interface SecurityConfig {
 
 // Liquidity pool
 export interface LiquidityPool {
+  poolId: string;
   runeId: string;
-  totalLiquidity: bigint;
-  providers: Map<string, bigint>;
+  totalLiquidity: string;
+  providers: number;
+  apy: number;
+  volume24h: string;
 }
 
 // Pool statistics
@@ -177,4 +180,42 @@ export interface RunesInfo {
   circulatingSupply: string;
   holders: number;
   transfers: number;
+}
+
+export interface RunePerformanceStats {
+  totalSupply: string;
+  circulatingSupply: string;
+  holders: number;
+  transactions: number;
+}
+
+export interface RuneTransaction {
+  txId: string;
+  runeId: string;
+  amount: string;
+  from: string;
+  to: string;
+  timestamp: number;
+  confirmations: number;
+  status: 'pending' | 'confirmed' | 'failed';
+}
+
+export interface OrderResult {
+  orderId: string;
+  status: 'open' | 'filled' | 'cancelled';
+  filledAmount: string;
+  remainingAmount: string;
+  price: string;
+  timestamp: number;
+}
+
+export interface TransactionHistory {
+  txId: string;
+  type: 'transfer' | 'mint' | 'burn';
+  amount: string;
+  from: string;
+  to: string;
+  timestamp: number;
+  confirmations: number;
+  status: 'pending' | 'confirmed' | 'failed';
 } 

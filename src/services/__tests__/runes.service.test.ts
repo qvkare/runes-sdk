@@ -1,136 +1,74 @@
 import { RunesService } from '../runes.service';
-import { RPCClient } from '../../utils/rpc.client';
-import { Logger } from '../../utils/logger';
-import { RunesValidator } from '../../utils/runes.validator';
-import { createMockLogger, createMockRpcClient } from '../../utils/__tests__/test.utils';
+import { createMockLogger, createMockRpcClient, createMockValidator } from '../../utils/test.utils';
+import { RuneTransfer } from '../../types/rune.types';
 
 describe('RunesService', () => {
-  let runesService: RunesService;
-  let mockRpcClient: jest.Mocked<RPCClient>;
-  let mockLogger: jest.Mocked<Logger>;
-  let mockValidator: jest.Mocked<RunesValidator>;
+  let service: RunesService;
+  let mockRpcClient: any;
+  let mockLogger: any;
+  let mockValidator: any;
 
   beforeEach(() => {
-    mockLogger = createMockLogger('RunesService');
-    mockRpcClient = createMockRpcClient(mockLogger);
-    mockValidator = {
-      validateTransfer: jest.fn(),
-      validateAddress: jest.fn(),
-      validateRuneId: jest.fn(),
-      isValidAmount: jest.fn(),
-      logger: mockLogger,
-      rpcClient: mockRpcClient
-    } as unknown as jest.Mocked<RunesValidator>;
-    runesService = new RunesService(mockRpcClient, mockLogger, mockValidator);
-  });
-
-  describe('getRuneInfo', () => {
-    const runeId = 'rune123';
-
-    it('should get rune info successfully', async () => {
-      const mockStats = {
-        volume24h: 1000,
-        price24h: 1.5,
-        transactions24h: 100,
-        holders: 50,
-        marketCap: 1500000
-      };
-
-      const mockResponse = {
-        result: mockStats
-      };
-
-      mockRpcClient.call.mockResolvedValueOnce(mockResponse);
-
-      const result = await runesService.getRuneInfo(runeId);
-      expect(result).toEqual(mockStats);
-      expect(mockRpcClient.call).toHaveBeenCalledWith('getruneinfo', [runeId]);
-    });
-
-    it('should handle RPC errors', async () => {
-      mockRpcClient.call.mockRejectedValueOnce(new Error('RPC error'));
-
-      await expect(runesService.getRuneInfo(runeId)).rejects.toThrow('Failed to get rune info');
-      expect(mockLogger.error).toHaveBeenCalled();
-    });
-
-    it('should handle invalid RPC response', async () => {
-      mockRpcClient.call.mockResolvedValueOnce({ result: null });
-
-      await expect(runesService.getRuneInfo(runeId)).rejects.toThrow('Invalid response from RPC');
-      expect(mockLogger.error).toHaveBeenCalledWith('Invalid response from RPC');
-    });
+    mockRpcClient = createMockRpcClient();
+    mockLogger = createMockLogger();
+    mockValidator = createMockValidator();
+    service = new RunesService(mockRpcClient, mockLogger, mockValidator);
   });
 
   describe('transferRune', () => {
-    const transfer = {
-      runeId: 'rune123',
+    const validTransfer: RuneTransfer = {
+      from: 'addr1',
+      to: 'addr2',
       amount: '100',
-      fromAddress: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-      toAddress: '12c6DSiU4Rq3P4ZxziKxzrL5LmMBrzjrJX'
+      symbol: 'RUNE'
     };
 
     it('should transfer rune successfully', async () => {
-      mockValidator.validateTransfer.mockResolvedValueOnce({
-        isValid: true,
-        errors: [],
-        warnings: []
-      });
-
       const mockResponse = {
-        result: {
-          txId: 'tx123'
-        }
+        txid: 'tx123',
+        ...validTransfer
       };
 
-      mockRpcClient.call.mockResolvedValueOnce(mockResponse);
+      mockValidator.validateTransfer.mockReturnValue({ isValid: true, errors: [] });
+      mockRpcClient.call.mockResolvedValue(mockResponse);
 
-      const result = await runesService.transferRune(transfer);
-      expect(result).toEqual(mockResponse.result);
-      expect(mockValidator.validateTransfer).toHaveBeenCalledWith(transfer);
-      expect(mockRpcClient.call).toHaveBeenCalledWith('transferrune', [
-        transfer.runeId,
-        transfer.amount,
-        transfer.fromAddress,
-        transfer.toAddress
-      ]);
+      const result = await service.transferRune(validTransfer);
+      expect(result).toEqual(mockResponse);
+      expect(mockValidator.validateTransfer).toHaveBeenCalledWith(validTransfer);
+      expect(mockRpcClient.call).toHaveBeenCalledWith('transfer', [validTransfer]);
     });
 
     it('should handle validation errors', async () => {
-      mockValidator.validateTransfer.mockResolvedValueOnce({
+      mockValidator.validateTransfer.mockReturnValue({
         isValid: false,
-        errors: ['Invalid amount'],
-        warnings: []
+        errors: ['Invalid transfer']
       });
 
-      await expect(runesService.transferRune(transfer)).rejects.toThrow('Invalid amount');
+      await expect(service.transferRune(validTransfer))
+        .rejects
+        .toThrow('Invalid transfer');
+      expect(mockValidator.validateTransfer).toHaveBeenCalled();
       expect(mockRpcClient.call).not.toHaveBeenCalled();
     });
 
     it('should handle RPC errors', async () => {
-      mockValidator.validateTransfer.mockResolvedValueOnce({
-        isValid: true,
-        errors: [],
-        warnings: []
-      });
+      mockValidator.validateTransfer.mockReturnValue({ isValid: true, errors: [] });
+      mockRpcClient.call.mockRejectedValue(new Error('RPC error'));
 
-      mockRpcClient.call.mockRejectedValueOnce(new Error('RPC error'));
-
-      await expect(runesService.transferRune(transfer)).rejects.toThrow('Failed to transfer rune');
+      await expect(service.transferRune(validTransfer))
+        .rejects
+        .toThrow('Failed to transfer rune: RPC error');
       expect(mockLogger.error).toHaveBeenCalled();
     });
 
-    it('should handle invalid RPC response', async () => {
-      mockValidator.validateTransfer.mockResolvedValueOnce({
-        isValid: true,
-        errors: [],
-        warnings: []
-      });
+    it('should handle unknown errors', async () => {
+      mockValidator.validateTransfer.mockReturnValue({ isValid: true, errors: [] });
+      mockRpcClient.call.mockRejectedValue('Unknown error');
 
-      mockRpcClient.call.mockResolvedValueOnce({ result: null });
-
-      await expect(runesService.transferRune(transfer)).rejects.toThrow('Invalid response from RPC');
-      expect(mockLogger.error).toHaveBeenCalledWith('Invalid response from RPC');
+      await expect(service.transferRune(validTransfer))
+        .rejects
+        .toThrow('Failed to transfer rune: Unknown error');
+      expect(mockLogger.error).toHaveBeenCalled();
     });
   });
 }); 

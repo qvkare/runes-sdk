@@ -10,4 +10,4 @@ var RunesOperationType;
     RunesOperationType["TRANSFER"] = "transfer";
     RunesOperationType["MINT"] = "mint";
     RunesOperationType["BURN"] = "burn";
-})(RunesOperationType = exports.RunesOperationType || (exports.RunesOperationType = {}));
+})(RunesOperationType || (exports.RunesOperationType = RunesOperationType = {}));
