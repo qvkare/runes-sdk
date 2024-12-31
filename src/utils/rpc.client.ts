@@ -44,7 +44,7 @@ export class RPCClient {
       } catch (_error) {
         lastError = _error as Error;
         if (attempt < this.maxRetries) {
-          this.logger.warn(`RPC call failed, retrying...`, { attempt, error });
+          this.logger.warn(`RPC call failed, retrying...`, { attempt, _error });
           await this.delay(this.retryDelay);
         }
       }
