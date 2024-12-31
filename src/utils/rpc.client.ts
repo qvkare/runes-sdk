@@ -42,7 +42,7 @@ export class RPCClient {
         
         return response;
       } catch (_error) {
-        lastError = error as Error;
+        lastError = _error as Error;
         if (attempt < this.maxRetries) {
           this.logger.warn(`RPC call failed, retrying...`, { attempt, error });
           await this.delay(this.retryDelay);
@@ -76,11 +76,11 @@ export class RPCClient {
           signal: controller.signal
         });
       } catch (_error) {
-        if (error instanceof Error) {
-          if (error.name === 'AbortError') {
+        if (_error instanceof Error) {
+          if (_error.name === 'AbortError') {
             throw new Error('Request timed out');
           }
-          throw new Error(`Network error: ${error.message}`);
+          throw new Error(`Network error: ${_error.message}`);
         }
         throw new Error('Network error: Unknown error');
       }
