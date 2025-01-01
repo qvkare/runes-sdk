@@ -4,6 +4,37 @@ import { createMockLogger } from '../../../utils/test.utils';
 import { WebhookConfig, WebhookEventType } from '../../../types/webhook.types';
 import { jest } from '@jest/globals';
 
+// Mock Response class for testing
+class MockResponse implements Response {
+  private _body: string;
+  private _init: ResponseInit;
+
+  constructor(body: string | object, init: ResponseInit = {}) {
+    this._body = typeof body === 'string' ? body : JSON.stringify(body);
+    this._init = init;
+  }
+
+  get status() { return this._init.status || 200; }
+  get statusText() { return this._init.statusText || 'OK'; }
+  get ok() { return this.status >= 200 && this.status < 300; }
+  get headers() { return new Headers(this._init.headers); }
+  
+  json() { return Promise.resolve(JSON.parse(this._body)); }
+  text() { return Promise.resolve(this._body); }
+  
+  // Implement other required Response interface methods
+  get body() { return null; }
+  get bodyUsed() { return false; }
+  get redirected() { return false; }
+  get type() { return 'default' as ResponseType; }
+  get url() { return ''; }
+  clone() { return new MockResponse(this._body, this._init); }
+  arrayBuffer() { return Promise.resolve(new ArrayBuffer(0)); }
+  blob() { return Promise.resolve(new Blob([this._body])); }
+  formData() { return Promise.resolve(new FormData()); }
+  bytes() { return Promise.resolve(new Uint8Array(0)); }
+}
+
 describe('WebhookService', () => {
   let webhookService: WebhookService;
   let mockLogger: jest.Mocked<Logger>;
@@ -60,7 +91,7 @@ describe('WebhookService', () => {
 
       webhookService.registerWebhook(webhookId, config);
 
-      const mockResponse = new Response(JSON.stringify({ success: true }), {
+      const mockResponse = new MockResponse({ success: true }, {
         status: 200,
         statusText: 'OK'
       });
@@ -91,7 +122,7 @@ describe('WebhookService', () => {
 
       webhookService.registerWebhook(webhookId, config);
 
-      const mockResponse = new Response('Internal Server Error', {
+      const mockResponse = new MockResponse('Internal Server Error', {
         status: 500,
         statusText: 'Internal Server Error'
       });
@@ -158,7 +189,7 @@ describe('WebhookService', () => {
       webhookService.registerWebhook(webhook1Id, config);
       webhookService.registerWebhook(webhook2Id, config2);
 
-      const mockResponse = new Response(JSON.stringify({ success: true }), {
+      const mockResponse = new MockResponse({ success: true }, {
         status: 200,
         statusText: 'OK'
       });

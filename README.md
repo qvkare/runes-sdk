@@ -4,26 +4,26 @@ A secure and scalable SDK for Runes. This SDK provides all the necessary tools f
 
 ## Features
 
-- 🔒 API Security
-  - API Key management
-  - Signature validation
-  - IP whitelist support
+API Security
+- API Key management
+- Signature validation
+- IP whitelist support
 
-- 🚦 Rate Limiting
-  - Time window based limits
-  - Flexible limit configuration
-  - Automatic cleanup
+Rate Limiting
+- Time window based limits
+- Flexible limit configuration
+- Automatic cleanup
 
-- ✅ Transaction Validation
-  - Address format validation
-  - Balance checks
-  - Fee validation
-  - Amount limits
+Transaction Validation
+- Address format validation
+- Balance checks
+- Fee validation
+- Amount limits
 
-- 👀 Mempool Monitoring
-  - Transaction status tracking
-  - Confirmation count checks
-  - RBF support
+Mempool Monitoring
+- Transaction status tracking
+- Confirmation count checks
+- RBF support
 
 ## Installation
 
@@ -36,7 +36,7 @@ npm install @runes/sdk
 ```typescript
 import { RunesSDK } from '@runes/sdk';
 
-// Configure SDK
+// SDK Configuration
 const sdk = new RunesSDK({
   host: 'your-node-url',
   username: 'your-username',
@@ -81,7 +81,7 @@ const apiKey = await sdk.generateApiKey({
   permissions: ['transaction:write']
 });
 
-// Send transaction
+// Send Transaction
 const transaction = {
   from: 'sender-address',
   to: 'receiver-address',
@@ -89,7 +89,7 @@ const transaction = {
   fee: '1000'
 };
 
-// Validate transaction
+// Validate Transaction
 const validationResult = await sdk.validateTransaction(transaction);
 if (validationResult.isValid) {
   // Send and monitor transaction
@@ -102,7 +102,7 @@ if (validationResult.isValid) {
 
 ### API Security
 
-The following features are available for API security:
+Available features for API security:
 
 ```typescript
 // Generate API Key
