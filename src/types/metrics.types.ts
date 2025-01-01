@@ -18,4 +18,4 @@ export interface TransactionMetrics {
   successRate?: number;
   averageTransactionTime?: number;
   lastUpdated?: number;
-} 
+}

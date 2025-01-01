@@ -1,44 +1,25 @@
-import { Logger } from './logger';
-import { RPCClient } from './rpc.client';
-import { ValidationResult, RuneTransfer } from '../types/rune.types';
+import { RuneTransfer } from '../types/rune.types';
 
-export class RunesValidator {
-  private readonly rpcClient: RPCClient;
-  private readonly logger: Logger;
-
-  constructor(rpcClient: RPCClient, logger: Logger) {
-    this.rpcClient = rpcClient;
-    this.logger = logger;
+export function validateRuneTransfer(params: RuneTransfer): boolean {
+  if (!params || typeof params !== 'object') {
+    throw new Error('Invalid transfer parameters');
   }
 
-  validateTransfer(params: RuneTransfer): ValidationResult {
-    const errors: string[] = [];
-
-    if (!params.from) {
-      errors.push('From address is required');
-    }
-
-    if (!params.to) {
-      errors.push('To address is required');
-    }
-
-    if (!params.amount) {
-      errors.push('Amount is required');
-    } else {
-      const amount = Number(params.amount);
-      if (isNaN(amount)) {
-        errors.push('Amount must be a valid number');
-      } else if (amount < 0) {
-        errors.push('Amount must be a positive number');
-      } else if (amount === 0) {
-        errors.push('Amount must be greater than zero');
-      }
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-      operations: errors.length === 0 ? [{ type: 'transfer', ...params }] : []
-    };
+  if (!params.sender || typeof params.sender !== 'string' || params.sender.trim() === '') {
+    throw new Error('Sender address is required');
   }
-} 
+
+  if (!params.recipient || typeof params.recipient !== 'string' || params.recipient.trim() === '') {
+    throw new Error('Recipient address is required');
+  }
+
+  if (!params.amount || typeof params.amount !== 'string' || params.amount.trim() === '' || isNaN(Number(params.amount))) {
+    throw new Error('Valid amount is required');
+  }
+
+  if (!params.runeId || typeof params.runeId !== 'string' || params.runeId.trim() === '') {
+    throw new Error('Rune identifier is required');
+  }
+
+  return true;
+}

@@ -10,4 +10,4 @@ export interface PerformanceMetricsResponse {
   priceChange24h: string;
   priceChangePercentage24h: string;
   updatedAt: number;
-} 
+}

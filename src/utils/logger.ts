@@ -1,51 +1,55 @@
-export enum LogLevel {
-  ERROR = 0,
-  WARN = 1,
-  INFO = 2,
-  DEBUG = 3
-}
+import { Logger } from '../types/logger.types';
 
-export interface Logger {
-  level: LogLevel;
-  context: string;
-  info(message: string): void;
-  warn(message: string): void;
-  error(message: string): void;
-  debug(message: string): void;
-  shouldLog(level: LogLevel): boolean;
-}
+export { Logger };
 
 export class ConsoleLogger implements Logger {
-  constructor(
-    public readonly context: string,
-    public readonly level: LogLevel = LogLevel.INFO
-  ) {}
+  private readonly context: string;
 
-  shouldLog(level: LogLevel): boolean {
-    return level <= this.level;
+  constructor(context: string = 'default') {
+    this.context = context;
   }
 
-  info(message: string): void {
-    if (this.shouldLog(LogLevel.INFO)) {
-      console.log(`[${this.context}] ${message}`);
+  private log(level: string, message: string, meta?: any): void {
+    const logData = {
+      timestamp: new Date().toISOString(),
+      level,
+      context: this.context,
+      message,
+      ...(meta && { meta }),
+    };
+
+    const logMethod = level.toLowerCase();
+    switch (logMethod) {
+      case 'debug':
+        console.debug(JSON.stringify(logData));
+        break;
+      case 'info':
+        console.info(JSON.stringify(logData));
+        break;
+      case 'warn':
+        console.warn(JSON.stringify(logData));
+        break;
+      case 'error':
+        console.error(JSON.stringify(logData));
+        break;
+      default:
+        console.log(JSON.stringify(logData));
     }
   }
 
-  warn(message: string): void {
-    if (this.shouldLog(LogLevel.WARN)) {
-      console.warn(`[${this.context}] ${message}`);
-    }
+  debug(message: string, meta?: any): void {
+    this.log('debug', message, meta);
   }
 
-  error(message: string): void {
-    if (this.shouldLog(LogLevel.ERROR)) {
-      console.error(`[${this.context}] ${message}`);
-    }
+  info(message: string, meta?: any): void {
+    this.log('info', message, meta);
   }
 
-  debug(message: string): void {
-    if (this.shouldLog(LogLevel.DEBUG)) {
-      console.debug(`[${this.context}] ${message}`);
-    }
+  warn(message: string, meta?: any): void {
+    this.log('warn', message, meta);
   }
-} 
+
+  error(message: string, meta?: any): void {
+    this.log('error', message, meta);
+  }
+}

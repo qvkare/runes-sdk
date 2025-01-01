@@ -1,44 +1,56 @@
-import { Logger } from '../../utils/logger';
-
-interface Webhook {
-  url: string;
-  events: string[];
-  active: boolean;
-}
+import { Logger } from '../../types/logger.types';
+import { WebhookConfig, WebhookEventType, WebhookResult } from '../../types/webhook.types';
 
 export class WebhookService {
-  private webhooks: Webhook[] = [];
+  private webhooks: Map<string, WebhookConfig>;
 
-  constructor(private readonly logger: Logger) {}
+  constructor(
+    private readonly logger: Logger,
+    private readonly defaultConfig: WebhookConfig
+  ) {
+    this.webhooks = new Map();
+  }
 
-  registerWebhook(url: string, events: string[]) {
-    const existingWebhook = this.webhooks.find(w => w.url === url);
-    if (existingWebhook) {
-      this.logger.warn(`Webhook already registered for URL: ${url}`);
-      return;
-    }
-
-    this.webhooks.push({
-      url,
-      events,
-      active: true
+  registerWebhook(webhookId: string, config: WebhookConfig): void {
+    this.webhooks.set(webhookId, {
+      ...this.defaultConfig,
+      ...config
     });
-
-    this.logger.info(`Registered webhook for URL: ${url}`);
+    this.logger.info('Webhook registered successfully:', webhookId);
   }
 
-  unregisterWebhook(url: string) {
-    const index = this.webhooks.findIndex(w => w.url === url);
-    if (index === -1) {
-      this.logger.warn(`No webhook found for URL: ${url}`);
-      return;
+  async notify(eventType: WebhookEventType, data: any): Promise<WebhookResult[]> {
+    const results: WebhookResult[] = [];
+
+    for (const [webhookId, config] of this.webhooks.entries()) {
+      if (config.events.includes(eventType)) {
+        try {
+          const response = await fetch(config.url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              type: eventType,
+              data,
+              timestamp: Date.now()
+            })
+          });
+
+          if (response.ok) {
+            results.push({ success: true });
+            this.logger.info('Webhook notification sent successfully:', webhookId);
+          } else {
+            results.push({ success: false, error: `HTTP ${response.status}` });
+            this.logger.error('Webhook notification failed:', webhookId);
+          }
+        } catch (error: any) {
+          results.push({ success: false, error: error?.message || 'Unknown error' });
+          this.logger.error('Error sending webhook notification:', error);
+        }
+      }
     }
 
-    this.webhooks.splice(index, 1);
-    this.logger.info(`Unregistered webhook for URL: ${url}`);
+    return results;
   }
-
-  getWebhooks(): Webhook[] {
-    return [...this.webhooks];
-  }
-} 
+}

@@ -2,58 +2,57 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.1.8] - 2024-01-17
+## [Unreleased]
 
-### Fixed
-- Fixed RPC call mock implementation
-- Fixed TypeScript type errors in test files
-- Removed unused imports
-- Aligned test expectations with mock responses
+### Pending
+- Complete RBF (Replace-By-Fee) support in MempoolMonitorService
+- Enhance performance testing suite
+- Add more edge case tests
 
-### Changed
-- Replaced `@ts-ignore` with `@ts-expect-error`
-- Added underscore (`_`) prefix for unused parameters
-- Improved test variable naming for better clarity
-
-### Improved
-- Enhanced test coverage metrics:
-  - Statements: 100%
-  - Branch: 97.24%
-  - Functions: 94.66%
-  - Lines: 100%
-
-## [0.1.7] - 2024-12-31
+## [0.1.10] - 2024-01-01
 
 ### Changed
-- Updated version for NPM compatibility
-- Improved package stability
-- Enhanced error handling consistency
-
-## [0.1.6] - 2024-12-31
+- Converted all Turkish content to English
+- Updated .gitignore and .npmignore files for better file management
 
 ### Added
-- Full TypeScript support with type definitions
-- Secure transaction handling
-- Automatic retry mechanism
-- Comprehensive runes statistics
-- Advanced batch operations
-- Detailed transaction history
-- Performance monitoring
-- Real-time metrics and logging
-
-### Fixed
-- Improved error handling in RPC client
-- Enhanced test coverage (now at 99.4%)
-- Fixed linting issues
-- Improved validation logic
+- Mempool Monitoring System
+  - Transaction status tracking
+  - Confirmation monitoring
+  - Basic RBF support
+- Transaction Validation Mechanisms
+  - Address format validation
+  - Balance verification
+  - Fee validation
+- API Security System
+  - API key management
+  - Request signature validation
+  - IP whitelist functionality
+- Rate Limiting System
+  - Time-window based limiting
+  - Per-user and per-action limits
+  - Automatic cleanup
 
 ### Changed
-- Updated dependencies to latest versions
-- Enhanced documentation
-- Optimized batch processing
-- Improved logging system
+- Improved error handling across all services
+- Enhanced logging system
+- Updated test coverage
+
+### Fixed
+- Memory leak in rate limiter
+- Race condition in transaction validation
+- Incorrect error messages in security service
+
+## [1.0.0] - 2023-12-31
+
+### Added
+- Initial release of Runes SDK
+- Basic transaction functionality
+- RPC client implementation
+- Core validation system
+- Basic security features
 
 ### Security
-- Added input validation for all API endpoints
-- Enhanced error message handling to prevent information leakage
-- Improved transaction validation 
+- Implemented input validation
+- Added API key authentication
+- Basic rate limiting 

@@ -52,4 +52,4 @@ export interface RPCConfig {
   maxRetries?: number;
   retryDelay?: number;
   network?: string;
-} 
+}

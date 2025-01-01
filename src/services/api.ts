@@ -1,5 +1,15 @@
 import { SDKConfig } from '../types/config';
-import { RuneInfo, RuneBalance, RuneTransaction, RuneStats, ValidationResult, SearchResult, PaginatedResponse, SearchOptions, PaginationOptions } from '../types/rune.types';
+import {
+  RuneInfo,
+  RuneBalance,
+  RuneTransaction,
+  RuneStats,
+  ValidationResult,
+  SearchResult,
+  PaginatedResponse,
+  SearchOptions,
+  PaginationOptions,
+} from '../types/rune.types';
 
 export class APIService {
   private readonly baseUrl: string;
@@ -77,4 +87,4 @@ export class APIService {
       body: JSON.stringify(options),
     });
   }
-} 
+}

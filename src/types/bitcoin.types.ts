@@ -91,4 +91,4 @@ export interface UTXO {
   spendable: boolean;
   solvable: boolean;
   safe: boolean;
-} 
+}

@@ -1,19 +1,32 @@
-export interface Order {
-  id: string;
-  amount: string;
-  price: string;
+export interface CreateOrderParams {
+  runeId: string;
+  amount: number;
+  price: number;
   type: 'buy' | 'sell';
-  status: string;
+  sender: string;
+  recipient: string;
 }
 
-export interface OrderResponse {
-  txid: string;
-  status: string;
+export interface CancelOrderParams {
+  orderId: string;
+}
+
+export interface Order {
+  orderId: string;
+  runeId: string;
+  amount: number;
+  price: number;
+  type: 'buy' | 'sell';
+  status: 'open' | 'filled' | 'cancelled';
+  timestamp: number;
+  sender: string;
+  recipient: string;
 }
 
 export interface OrderStatus {
-  id: string;
-  status: string;
-  filledAmount: string;
-  remainingAmount: string;
-} 
+  orderId: string;
+  status: 'open' | 'filled' | 'cancelled';
+  filledAmount?: number;
+  remainingAmount?: number;
+  timestamp: number;
+}

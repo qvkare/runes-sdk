@@ -1,30 +1,38 @@
-export interface TransactionHistory {
-  transactions: Array<{
-    txid: string;
-    timestamp: number;
-    amount: string;
-    type: string;
-  }>;
-  totalCount: number;
-}
-
-export interface TransactionDetails {
+export interface Transaction {
+  id: string;
+  type: string;
   txid: string;
-  timestamp: number;
-  confirmations: number;
+  blockhash?: string;
+  blockHash: string;
+  blockHeight: number;
+  blocktime?: number;
   amount: string;
   fee: string;
-  status: string;
+  confirmations: number;
+  timestamp: number;
+  sender: string;
+  recipient: string;
+  size: number;
+  time: number;
+  token?: string;
+  price?: string;
+  version: number;
+  status?: string;
 }
 
-export interface TransactionHistoryItem {
-  txid: string;
-  type: string;
-  amount: string;
-  runeId: string;
-  timestamp: number;
-  confirmations: number;
-  from: string;
-  to: string;
-  status: string;
-} 
+export enum TransactionType {
+  TRANSFER = 'transfer',
+  ORDER = 'order',
+  LIQUIDITY = 'liquidity',
+  BATCH = 'batch'
+}
+
+export interface TransactionValidationResult {
+  isValid: boolean;
+  errors?: ValidationError[];
+}
+
+export interface ValidationError {
+  code: string;
+  message: string;
+}

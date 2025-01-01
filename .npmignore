@@ -5,16 +5,23 @@ coverage/
 .github/
 .vscode/
 .idea/
+*.tsbuildinfo
 
 # Configuration files
 .eslintrc.json
 .prettierrc
 jest.config.js
 jest.setup.js
+jest.integration.config.js
+jest.performance.config.js
 tsconfig.json
+tsconfig.test.json
 
 # Documentation
-CEX_INTEGRATION_PLAN.md
+docs/
+*.md
+!README.md
+CRITICAL_IMPLEMENTATION_PLAN.md
 
 # Git files
 .git/
@@ -22,6 +29,13 @@ CEX_INTEGRATION_PLAN.md
 
 # Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Cache
+.npm/
+.yarn/
 
 # Environment variables
 .env

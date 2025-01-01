@@ -5,4 +5,4 @@ export interface LiquidityPoolResponse {
   totalShares: string;
   createdAt: number;
   updatedAt: number;
-} 
+}

@@ -1,46 +1,39 @@
-export interface MempoolFilter {
-  addresses?: string[];
-  minAmount?: number;
-  scriptTypes?: string[];
-}
-
-export interface MempoolEntry {
+export interface MempoolTransaction {
+  txid: string;
   size: number;
   fee: number;
-  modifiedfee: number;
   time: number;
-  height: number;
-  descendantcount: number;
-  descendantsize: number;
-  descendantfees: number;
-  ancestorcount: number;
-  ancestorsize: number;
-  ancestorfees: number;
-  wtxid: string;
-  fees: {
-    base: number;
-    modified: number;
-    ancestor: number;
-    descendant: number;
-  };
-  depends: string[];
-  spentby: string[];
-  'bip125-replaceable': boolean;
-  unbroadcast: boolean;
+  height?: number;
+  descendantcount?: number;
+  descendantsize?: number;
+  descendantfees?: number;
+  ancestorcount?: number;
+  ancestorsize?: number;
+  ancestorfees?: number;
 }
 
-export interface MempoolInfo {
-  loaded: boolean;
-  size: number;
-  bytes: number;
-  usage: number;
-  maxmempool: number;
-  mempoolminfee: number;
-  minrelaytxfee: number;
-  unbroadcastcount: number;
+export interface MempoolConfig {
+  maxWatchTime: number;
+  checkInterval: number;
+  maxRetries: number;
+  requiredConfirmations: number;
 }
 
-export interface MempoolTransaction {
+export interface TransactionStatus {
+  confirmed: boolean;
+  blockHeight?: number;
+  confirmations: number;
+  timestamp: number;
+}
+
+export interface TransactionStatusInfo {
+  status: TransactionStatus;
+  confirmations: number;
+  lastChecked: number;
+  replacedBy?: string;
+}
+
+export interface RawTransaction {
   txid: string;
   hash: string;
   version: number;
@@ -48,43 +41,16 @@ export interface MempoolTransaction {
   vsize: number;
   weight: number;
   locktime: number;
-  vin: Array<{
-    txid: string;
-    vout: number;
-    scriptSig: {
-      asm: string;
-      hex: string;
-    };
-    sequence: number;
-  }>;
-  vout: Array<{
-    value: number;
-    n: number;
-    scriptPubKey: {
-      asm: string;
-      hex: string;
-      reqSigs: number;
-      type: string;
-      addresses: string[];
-    };
-  }>;
+  vin: any[];
+  vout: any[];
   hex: string;
-  blockhash?: string;
-  confirmations: number;
-  time: number;
-  blocktime: number;
-}
-
-export interface TransactionStatus {
-  txid: string;
-  status: 'confirmed' | 'unconfirmed';
-  inMempool: boolean;
-  timestamp: number;
   confirmations?: number;
+  bip125_replaceable?: 'yes' | 'no' | 'unknown';
 }
 
-export interface MempoolWatcherConfig {
-  pollIntervalMs?: number;
-  maxTransactions?: number;
-  minConfirmations?: number;
-} 
+export class MempoolError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'MempoolError';
+  }
+}

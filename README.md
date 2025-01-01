@@ -1,173 +1,189 @@
 # Runes SDK
 
-TypeScript SDK for interacting with Bitcoin Runes protocol.
+A secure and scalable SDK for Runes. This SDK provides all the necessary tools for managing, validating, and monitoring Runes transactions.
 
 ## Features
 
-- 🚀 Full TypeScript support with type definitions
-- 🔒 Secure transaction handling
-- 🔄 Automatic retry mechanism
-- 📊 Comprehensive runes statistics
-- 💼 Advanced batch operations
-- 🔍 Detailed transaction history
-- 💧 Liquidity pool management
-- 📈 Performance monitoring
-- 🔔 Webhook integration
-- 🔍 Mempool tracking
-- 📊 Real-time metrics
+- 🔒 API Security
+  - API Key management
+  - Signature validation
+  - IP whitelist support
+
+- 🚦 Rate Limiting
+  - Time window based limits
+  - Flexible limit configuration
+  - Automatic cleanup
+
+- ✅ Transaction Validation
+  - Address format validation
+  - Balance checks
+  - Fee validation
+  - Amount limits
+
+- 👀 Mempool Monitoring
+  - Transaction status tracking
+  - Confirmation count checks
+  - RBF support
 
 ## Installation
 
 ```bash
-npm install runes-sdk
+npm install @runes/sdk
 ```
 
 ## Quick Start
 
 ```typescript
-import { RunesSDK } from 'runes-sdk';
+import { RunesSDK } from '@runes/sdk';
 
-// Initialize SDK with logger
-const sdk = new RunesSDK(
-  'http://localhost:8332',  // RPC URL
-  'username',               // RPC username
-  'password',              // RPC password
-  logger                   // Optional logger
-);
+// Configure SDK
+const sdk = new RunesSDK({
+  host: 'your-node-url',
+  username: 'your-username',
+  password: 'your-password',
+  
+  // Security settings
+  securityConfig: {
+    keyExpirationTime: 3600000, // 1 hour
+    maxKeysPerUser: 5,
+    requiredKeyStrength: 256,
+    ipWhitelistEnabled: true
+  },
 
-// Get transaction history
-const history = await sdk.getTransactionHistory('address');
+  // Rate limit settings
+  rateLimitConfig: {
+    windowSize: 60000,           // 1 minute
+    maxRequestsPerWindow: 100,   // 100 requests per minute
+    cleanupInterval: 300000,     // 5 minutes
+    cleanupThreshold: 3600000    // 1 hour
+  },
 
-// Get specific transaction
-const tx = await sdk.getTransaction('txid');
+  // Validation settings
+  validationConfig: {
+    addressRegex: /^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,39}$/,
+    maxTransactionAmount: '1000000000',
+    minFee: '500',
+    maxFee: '100000'
+  },
 
-// Process batch transfers
-const transfers = [
-  {
-    from: 'addr1',
-    to: 'addr2',
-    amount: '100',
-    symbol: 'RUNE'
+  // Mempool settings
+  mempoolConfig: {
+    maxWatchTime: 3600000,      // 1 hour
+    checkInterval: 15000,        // 15 seconds
+    requiredConfirmations: 6,
+    maxRetries: 3
   }
-];
-const result = await sdk.processBatch(transfers);
-```
-
-## Advanced Features
-
-### Webhook Integration
-
-```typescript
-// Register webhook
-sdk.webhook.registerWebhook('http://your-server.com/webhook', ['transaction', 'block']);
-
-// Handle webhook events
-sdk.webhook.on('transaction', (event) => {
-  console.log('New transaction:', event);
-});
-```
-
-### Mempool Tracking
-
-```typescript
-// Watch mempool for transactions
-sdk.mempool.watchMempool((transactions) => {
-  console.log('New mempool transactions:', transactions);
 });
 
-// Get transaction status
-const status = await sdk.mempool.getTransactionStatus('txid');
-```
+// Generate API Key
+const apiKey = await sdk.generateApiKey({
+  userId: 'user123',
+  permissions: ['transaction:write']
+});
 
-### Performance Monitoring
+// Send transaction
+const transaction = {
+  from: 'sender-address',
+  to: 'receiver-address',
+  amount: '100000',
+  fee: '1000'
+};
 
-```typescript
-// Get performance metrics
-const metrics = await sdk.performance.getMetrics();
-
-// Check rate limits
-const isAllowed = await sdk.performance.checkRateLimit('operation');
-```
-
-### Security Features
-
-```typescript
-// Calculate risk score
-const risk = await sdk.security.calculateRiskScore(transaction);
-
-// Check blacklist
-const isBlacklisted = await sdk.security.checkBlacklist('address');
-
-// Validate transaction limits
-const limitCheck = await sdk.security.checkTransactionLimits(transaction);
-```
-
-## Configuration
-
-```typescript
-interface SDKConfig {
-  rpcUrl: string;         // Bitcoin RPC URL
-  network: 'mainnet' | 'testnet' | 'regtest';
-  username: string;       // RPC username
-  password: string;       // RPC password
-  timeout?: number;       // Request timeout in ms
-  maxRetries?: number;    // Number of retry attempts
-  retryDelay?: number;   // Delay between retries in ms
+// Validate transaction
+const validationResult = await sdk.validateTransaction(transaction);
+if (validationResult.isValid) {
+  // Send and monitor transaction
+  const txid = 'transaction-id';
+  await sdk.watchTransaction(txid);
 }
 ```
 
-## Development
+## Detailed Documentation
+
+### API Security
+
+The following features are available for API security:
+
+```typescript
+// Generate API Key
+const apiKey = await sdk.generateApiKey({
+  userId: 'user123',
+  permissions: ['transaction:write'],
+  ipWhitelist: ['127.0.0.1']
+});
+
+// Validate API Key
+const validation = await sdk.validateApiKey(
+  apiKey,
+  signature,
+  payload,
+  ipAddress
+);
+```
+
+### Rate Limiting
+
+To control request limits:
+
+```typescript
+// Check rate limit
+await sdk.checkLimit('user123', 'transaction:write');
+
+// Check limit status
+const status = await sdk.getLimitStatus('user123', 'transaction:write');
+
+// Reset limit
+await sdk.resetLimit('user123', 'transaction:write');
+```
+
+### Transaction Validation
+
+To validate transactions:
+
+```typescript
+// Validate transaction
+const result = await sdk.validateTransaction({
+  from: 'sender-address',
+  to: 'receiver-address',
+  amount: '100000',
+  fee: '1000'
+});
+
+if (result.isValid) {
+  console.log('Transaction is valid');
+} else {
+  console.error('Errors:', result.errors);
+  console.warn('Warnings:', result.warnings);
+}
+```
+
+### Mempool Monitoring
+
+To monitor transactions:
+
+```typescript
+// Watch transaction
+await sdk.watchTransaction('txid');
+
+// Check status
+const status = await sdk.getTransactionStatus('txid');
+
+// Stop watching
+sdk.stopWatchingTransaction('txid');
+```
+
+## Testing
 
 ```bash
-# Install dependencies
-npm install
-
-# Build
-npm run build
-
-# Run tests
+# Run unit tests
 npm test
 
-# Run linter
-npm run lint
+# Run integration tests
+npm run test:integration
 
-# Format code
-npm run format
+# Run all tests
+npm run test:all
 ```
-
-## Test Coverage
-
-Current test coverage metrics:
-- Statements: 100%
-- Branch: 97.24%
-- Functions: 94.66%
-- Lines: 100%
-
-## Error Handling
-
-The SDK includes comprehensive error handling:
-
-```typescript
-try {
-  const history = await sdk.getTransactionHistory('address');
-} catch (error) {
-  if (error instanceof RPCError) {
-    console.error('RPC Error:', error.message);
-  } else if (error instanceof ValidationError) {
-    console.error('Validation Error:', error.message);
-  } else if (error instanceof SecurityError) {
-    console.error('Security Error:', error.message);
-  }
-}
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
 
 ## License
 

@@ -1,28 +1,14 @@
-export interface BatchResult {
-  successful: number;
-  failed: number;
-  transactions: Array<{
-    txid?: string;
-    error?: string;
-    status?: string;
-  }>;
-}
-
 export interface BatchTransfer {
-  from: string;
-  to: string;
-  amount: bigint;
-}
-
-export interface BatchResultItem {
-  index: number;
-  success: boolean;
-  txid?: string;
-  error?: string;
+  sender: string;
+  recipient: string;
+  amount: string;
+  fee?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface BatchProcessResult {
-  txid: string;
-  status: string;
-  results: BatchResultItem[];
-} 
+  success: boolean;
+  validTransfers: BatchTransfer[];
+  invalidTransfers: BatchTransfer[];
+  errors: string[];
+}

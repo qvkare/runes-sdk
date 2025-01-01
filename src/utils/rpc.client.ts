@@ -1,18 +1,7 @@
-import { Logger } from './logger';
+import { Logger } from '../types/logger.types';
+import { Transaction } from '../types/transaction.types';
 
-export interface RPCResponse<T = unknown> {
-  jsonrpc: string;
-  id: number;
-  result?: T;
-  error?: {
-    code: number;
-    message: string;
-  };
-}
-
-export class RPCClient {
-  private id = 0;
-
+export class RpcClient {
   constructor(
     private readonly url: string,
     private readonly username: string,
@@ -20,42 +9,52 @@ export class RPCClient {
     private readonly logger?: Logger
   ) {}
 
-  async call<T = any>(method: string, params: any[] = []): Promise<T> {
+  async call(method: string, params: any[] = []): Promise<any> {
     try {
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-
-      if (this.username && this.password) {
-        const auth = Buffer.from(`${this.username}:${this.password}`).toString('base64');
-        headers['Authorization'] = `Basic ${auth}`;
-      }
-
       const response = await fetch(this.url, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization:
+            'Basic ' + Buffer.from(`${this.username}:${this.password}`).toString('base64'),
+        },
         body: JSON.stringify({
           jsonrpc: '2.0',
-          id: ++this.id,
+          id: Date.now(),
           method,
           params,
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data: RPCResponse<T> = await response.json();
-
+      const data = await response.json();
       if (data.error) {
-        throw new Error(`RPC error: ${data.error.message} (code: ${data.error.code})`);
+        throw new Error(data.error.message);
       }
 
-      return data.result as T;
+      return data.result;
     } catch (error) {
-      this.logger?.error(`Failed to make RPC call: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      throw new Error(`Failed to make RPC call: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      this.logger?.error(`RPC call failed (${method}):`, error);
+      throw error;
     }
   }
-} 
+
+  async getTransaction(txid: string): Promise<Transaction> {
+    return this.call('gettransaction', [txid]);
+  }
+
+  async getBalance(address: string): Promise<string> {
+    return this.call('getbalance', [address]);
+  }
+
+  async sendTransaction(tx: Transaction): Promise<string> {
+    return this.call('sendrawtransaction', [tx]);
+  }
+
+  async validateTransaction(txid: string): Promise<boolean> {
+    return this.call('validatetransaction', [txid]);
+  }
+}

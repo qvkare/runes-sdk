@@ -4,25 +4,25 @@
 
 // Runes data structure
 export interface Runes {
-  id: string;           
-  symbol: string;       
-  decimals: number;     
-  supply: bigint;       
-  limit?: bigint;       
-  minted: bigint;       
-  burned: bigint;       
-  timestamp: number;    
-  creator: string;      
-  mintable: boolean;    
+  id: string;
+  symbol: string;
+  decimals: number;
+  supply: bigint;
+  limit?: bigint;
+  minted: bigint;
+  burned: bigint;
+  timestamp: number;
+  creator: string;
+  mintable: boolean;
   transferable: boolean;
 }
 
 // Runes balance information
 export interface RunesBalance {
-  address: string;      
-  runes: string;        
-  amount: bigint;      
-  lastUpdated: number;   
+  address: string;
+  runes: string;
+  amount: bigint;
+  lastUpdated: number;
 }
 
 // Runes transfer details
@@ -41,7 +41,7 @@ export interface RunesTransfer {
 export enum RunesOperationType {
   TRANSFER = 'transfer',
   MINT = 'mint',
-  BURN = 'burn'
+  BURN = 'burn',
 }
 
 // Runes operation details
@@ -173,35 +173,37 @@ export interface RunesInfo {
   symbol: string;
   totalSupply: string;
   circulatingSupply: string;
-  holders: number;
-  transfers: number;
+  creator: string;
+  createdAt: number;
 }
 
 export interface RuneInfo {
   id: string;
+  name: string;
   symbol: string;
-  amount: string;
-  decimals: number;
-  owner: string;
-  minted: string;
-  burned: string;
-  supply: string;
-  limit: string;
+  totalSupply: string;
+  circulatingSupply: string;
+  creator: string;
+  createdAt: number;
 }
 
 export interface RuneBalance {
   runeId: string;
-  amount: string;
+  address: string;
+  balance: string;
   lastUpdated: number;
 }
 
 export interface RuneTransaction {
+  id: string;
   txid: string;
   type: string;
-  from: string;
-  to: string;
   amount: string;
-  timestamp: number;
+  fee: string;
+  confirmations: number;
+  blockHash?: string;
+  blockHeight?: number;
+  timestamp?: number;
 }
 
 export interface RuneStats {
@@ -246,15 +248,21 @@ export interface PaginationOptions {
 }
 
 export interface RuneTransfer {
-  from: string;
-  to: string;
+  id: string;
+  runeId: string;
+  sender: string;
+  recipient: string;
   amount: string;
-  symbol?: string;
+  timestamp: number;
+  status: 'pending' | 'completed' | 'failed';
+  error?: string;
 }
 
-export interface BatchTransfer extends RuneTransfer {
-  id?: string;
-  status?: string;
+export interface BatchTransfer {
+  token: string;
+  amount: string;
+  sender: string;
+  recipient: string;
 }
 
 export interface BatchProcessResult {
@@ -270,4 +278,71 @@ export interface BatchProcessResult {
   successfulTransfers: number;
   failedTransfers: number;
   errors: Error[];
-} 
+}
+
+export interface RuneCreateParams {
+  name: string;
+  supply: string;
+  description?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface RuneTransferParams {
+  runeId: string;
+  recipient: string;
+  amount: string;
+  memo?: string;
+}
+
+export interface BatchTransfer {
+  token: string;
+  amount: string;
+  recipient: string;
+}
+
+export interface BatchTransferResult {
+  successful: BatchTransfer[];
+  failed: BatchTransfer[];
+  totalTransfers: number;
+  successfulTransfers: number;
+  failedTransfers: number;
+  errors: Error[];
+}
+
+export interface RunePermissions {
+  runeId: string;
+  canMint: boolean;
+  canBurn: boolean;
+  canTransfer: boolean;
+  canModifyPermissions: boolean;
+}
+
+export interface RuneAccessResult {
+  hasAccess: boolean;
+  permissions?: RunePermissions;
+}
+
+export interface RuneMetrics {
+  runeId: string;
+  totalTransfers: number;
+  uniqueHolders: number;
+  averageTransferAmount: string;
+  largestTransfer: string;
+  lastTransferTimestamp: number;
+}
+
+export interface NetworkStats {
+  connectedPeers: number;
+  inboundConnections: number;
+  outboundConnections: number;
+  bandwidthUsage: number;
+  networkVersion: string;
+}
+
+export interface SystemResources {
+  totalMemory: number;
+  freeMemory: number;
+  cpuCores: number;
+  diskSpace: number;
+  uptime: number;
+}

@@ -8,13 +8,13 @@ export function createMockLogger(): jest.Mocked<Logger> {
     debug: jest.fn(),
     context: 'TestContext',
     level: LogLevel.INFO,
-    shouldLog: jest.fn().mockReturnValue(true)
+    shouldLog: jest.fn().mockReturnValue(true),
   } as jest.Mocked<Logger>;
 }
 
 export function createMockRPCClient() {
   return {
-    call: jest.fn()
+    call: jest.fn(),
   };
 }
 
@@ -24,6 +24,6 @@ export function createMockValidator() {
     validateAddress: jest.fn(),
     validateAmount: jest.fn(),
     validateRuneId: jest.fn(),
-    validateRuneExists: jest.fn()
+    validateRuneExists: jest.fn(),
   };
-} 
+}

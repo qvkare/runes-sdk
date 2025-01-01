@@ -1,5 +1,5 @@
 import { RunesSDK } from '../index';
-import { createMockLogger, createMockRpcClient } from '../utils/test.utils';
+import { createMockLogger, createMockRPCClient } from '../utils/test.utils';
 import { LogLevel } from '../utils/logger';
 import { BatchTransfer } from '../types/rune.types';
 import { RPCClient } from '../utils/rpc.client';
@@ -13,18 +13,20 @@ describe('RunesSDK', () => {
 
   beforeEach(() => {
     mockLogger = createMockLogger();
-    mockRpcClientInstance = createMockRpcClient();
+    mockRpcClientInstance = createMockRPCClient();
     mockRpcClientInstance.call.mockImplementation(async (method: string) => {
       switch (method) {
         case 'gettransactionhistory':
-          return [{
-            txid: 'tx1',
-            type: 'transfer',
-            from: 'addr1',
-            to: 'addr2',
-            amount: '100',
-            timestamp: 1234567890
-          }];
+          return [
+            {
+              txid: 'tx1',
+              type: 'transfer',
+              from: 'addr1',
+              to: 'addr2',
+              amount: '100',
+              timestamp: 1234567890,
+            },
+          ];
         case 'gettransaction':
           return {
             txid: 'tx1',
@@ -32,7 +34,7 @@ describe('RunesSDK', () => {
             from: 'addr1',
             to: 'addr2',
             amount: '100',
-            timestamp: 1234567890
+            timestamp: 1234567890,
           };
         case 'transfer':
           return { txid: 'tx123' };
@@ -41,12 +43,7 @@ describe('RunesSDK', () => {
       }
     });
 
-    sdk = new RunesSDK(
-      'http://localhost:8332',
-      'testuser',
-      'testpass',
-      mockLogger
-    );
+    sdk = new RunesSDK('http://localhost:8332', 'testuser', 'testpass', mockLogger);
 
     // @ts-expect-error Intentionally overriding private property for testing
     sdk['rpcClient'] = mockRpcClientInstance;
@@ -54,10 +51,10 @@ describe('RunesSDK', () => {
     // Mock RPC responses
     mockRpcClientInstance.call.mockImplementation((method: string, _params: string[]) => {
       if (method === 'gettransactionhistory') {
-        return Promise.resolve([{ txid: 'tx1', /* other required fields */ }]);
+        return Promise.resolve([{ txid: 'tx1' /* other required fields */ }]);
       }
       if (method === 'gettransaction') {
-        return Promise.resolve({ txid: 'testTxId', /* other required fields */ });
+        return Promise.resolve({ txid: 'testTxId' /* other required fields */ });
       }
       return Promise.reject(new Error('Unknown method'));
     });
@@ -82,12 +79,7 @@ describe('RunesSDK', () => {
     const customLogger = createMockLogger();
     customLogger.level = LogLevel.DEBUG;
 
-    const customSdk = new RunesSDK(
-      'http://localhost:8332',
-      'testuser',
-      'testpass',
-      customLogger
-    );
+    const customSdk = new RunesSDK('http://localhost:8332', 'testuser', 'testpass', customLogger);
 
     expect(customSdk).toBeDefined();
   });
@@ -130,8 +122,8 @@ describe('RunesSDK', () => {
           from: 'addr1',
           to: 'addr2',
           amount: '100',
-          symbol: 'RUNE'
-        }
+          symbol: 'RUNE',
+        },
       ];
 
       const result = await sdk.processBatch(transfers);
@@ -144,4 +136,4 @@ describe('RunesSDK', () => {
       expect(result.errors).toBeDefined();
     });
   });
-}); 
+});

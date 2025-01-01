@@ -1,32 +1,22 @@
-import { RPCClient } from '../utils/rpc.client';
-import { Logger } from '../utils/logger';
-import { RunesValidator } from '../utils/runes.validator';
+import { RpcClient } from '../types/rpc.types';
+import { Logger } from '../types/logger.types';
+import { validateRuneTransfer } from '../utils/runes.validator';
 import { RuneTransfer } from '../types/rune.types';
 
 export class RunesService {
-  private readonly rpcClient: RPCClient;
-  private readonly logger: Logger;
-  private readonly validator: RunesValidator;
+  constructor(
+    private readonly rpcClient: RpcClient,
+    private readonly logger: Logger
+  ) {}
 
-  constructor(rpcClient: RPCClient, logger: Logger, validator: RunesValidator) {
-    this.rpcClient = rpcClient;
-    this.logger = logger;
-    this.validator = validator;
-  }
-
-  async transferRune(transfer: RuneTransfer): Promise<any> {
+  async transfer(params: RuneTransfer): Promise<string> {
     try {
-      const validationResult = this.validator.validateTransfer(transfer);
-      if (!validationResult.isValid) {
-        throw new Error(validationResult.errors[0] || 'Invalid transfer');
-      }
-
-      const response = await this.rpcClient.call('transfer', [transfer]);
-      return response;
+      validateRuneTransfer(params);
+      const result = await this.rpcClient.call('transfer', [params]);
+      return result;
     } catch (error) {
-      const errorMessage = `Failed to transfer rune: ${error instanceof Error ? error.message : 'Unknown error'}`;
-      this.logger.error(errorMessage);
-      throw new Error(errorMessage);
+      this.logger.error('Error transferring runes:', error);
+      throw error;
     }
   }
-} 
+}

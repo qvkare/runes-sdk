@@ -1,39 +1,26 @@
-import { RuneTransaction } from './rune.types';
-
-export type WebhookEventType = 'deposit' | 'withdrawal' | 'transfer';
-export type WebhookEventStatus = 'pending' | 'confirmed' | 'failed';
-
-export interface WebhookEvent {
-  type: WebhookEventType;
-  status: WebhookEventStatus;
-  transaction: {
-    txid: string;
-    from: string;
-    to: string;
-    amount: number;
-    confirmations: number;
-    timestamp: number;
-    runeTransaction?: RuneTransaction;
-  };
-  metadata: {
-    userId?: string;
-    exchangeOrderId?: string;
-    riskScore?: number;
-  };
-}
+import { Transaction } from './transaction.types';
 
 export interface WebhookConfig {
   url: string;
-  secret: string;
   events: WebhookEventType[];
-  retryCount?: number;
-  timeoutMs?: number;
+  retryCount: number;
+  timeout: number;
 }
 
-export interface WebhookDeliveryResult {
-  success: boolean;
-  statusCode?: number;
-  error?: string;
+export enum WebhookEventType {
+  TRANSFER = 'TRANSFER',
+  MINT = 'MINT',
+  BURN = 'BURN',
+  TRANSACTION_CONFIRMED = 'TRANSACTION_CONFIRMED'
+}
+
+export interface WebhookEvent {
+  type: WebhookEventType;
+  data: any;
   timestamp: number;
-  retryCount: number;
-} 
+}
+
+export interface WebhookResult {
+  success: boolean;
+  error?: string;
+}

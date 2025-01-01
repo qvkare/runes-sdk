@@ -94,4 +94,4 @@ export class SecurityError extends RunesSDKError {
     super(message);
     this.name = 'SecurityError';
   }
-} 
+}

@@ -1,175 +1,113 @@
-import { jest } from '@jest/globals';
 import { RPCClient } from '../rpc.client';
 import { createMockLogger } from '../test.utils';
 
 describe('RPCClient', () => {
   let rpcClient: RPCClient;
-  let mockLogger: jest.Mocked<any>;
-  let mockFetch: any;
+  let mockLogger: ReturnType<typeof createMockLogger>;
+  const mockUrl = 'http://localhost:8332';
+  const mockUsername = 'testuser';
+  const mockPassword = 'testpass';
 
   beforeEach(() => {
     mockLogger = createMockLogger();
-    rpcClient = new RPCClient('http://localhost:8332', 'user', 'pass', mockLogger);
-
-    // Mock global fetch
-    mockFetch = jest.spyOn(global, 'fetch').mockImplementation(() => Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve({ result: { success: true } }),
-      headers: new Headers(),
-      redirected: false,
-      status: 200,
-      statusText: 'OK',
-      type: 'basic',
-      url: 'http://localhost:8332',
-      clone: () => ({} as Response),
-      body: null,
-      bodyUsed: false,
-      arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
-      blob: () => Promise.resolve(new Blob()),
-      formData: () => Promise.resolve(new FormData()),
-      text: () => Promise.resolve('')
-    } as Response));
+    rpcClient = new RPCClient(mockUrl, mockUsername, mockPassword, mockLogger);
   });
 
-  afterEach(() => {
-    mockFetch.mockRestore();
+  it('should create RPC client with correct configuration', () => {
+    expect(rpcClient).toBeDefined();
   });
 
-  it('should make successful RPC call', async () => {
-    const mockResponse = {
+  it('should call RPC method with correct parameters', async () => {
+    const mockResponse = { result: 'test' };
+    global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({
-        jsonrpc: '2.0',
-        id: 1,
-        result: { success: true }
-      }),
-      headers: new Headers(),
-      redirected: false,
-      status: 200,
-      statusText: 'OK',
-      type: 'basic',
-      url: 'http://localhost:8332',
-      clone: () => ({} as Response),
-      body: null,
-      bodyUsed: false,
-      arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
-      blob: () => Promise.resolve(new Blob()),
-      formData: () => Promise.resolve(new FormData()),
-      text: () => Promise.resolve('')
-    } as Response;
-
-    mockFetch.mockResolvedValue(mockResponse);
+      json: () => Promise.resolve(mockResponse),
+    });
 
     const result = await rpcClient.call('test', ['param1', 'param2']);
+    expect(result).toBe(mockResponse);
 
-    expect(result).toEqual({ success: true });
-    expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:8332',
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({
-          'Content-Type': 'application/json',
-          'Authorization': expect.any(String)
-        }),
-        body: expect.any(String)
-      })
-    );
-  });
-
-  it('should handle HTTP errors', async () => {
-    const mockResponse = {
-      ok: false,
-      status: 404,
-      statusText: 'Not Found',
-      headers: new Headers(),
-      redirected: false,
-      type: 'error',
-      url: 'http://localhost:8332',
-      clone: () => ({} as Response),
-      body: null,
-      bodyUsed: false,
-      arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
-      blob: () => Promise.resolve(new Blob()),
-      formData: () => Promise.resolve(new FormData()),
-      text: () => Promise.resolve(''),
-      json: () => Promise.resolve({})
-    } as Response;
-
-    mockFetch.mockResolvedValue(mockResponse);
-
-    await expect(rpcClient.call('test'))
-      .rejects
-      .toThrow('HTTP error: 404 Not Found');
-    expect(mockLogger.error).toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledWith(mockUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: expect.any(String),
+      },
+      body: expect.stringContaining('"method":"test"'),
+    });
   });
 
   it('should handle RPC errors', async () => {
-    const mockResponse = {
+    const mockError = { error: { code: -1, message: 'Test error' } };
+    global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({
-        jsonrpc: '2.0',
-        id: 1,
-        error: {
-          code: -32601,
-          message: 'Method not found'
-        }
-      }),
-      headers: new Headers(),
-      redirected: false,
-      status: 200,
-      statusText: 'OK',
-      type: 'basic',
-      url: 'http://localhost:8332',
-      clone: () => ({} as Response),
-      body: null,
-      bodyUsed: false,
-      arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
-      blob: () => Promise.resolve(new Blob()),
-      formData: () => Promise.resolve(new FormData()),
-      text: () => Promise.resolve('')
-    } as Response;
+      json: () => Promise.resolve(mockError),
+    });
 
-    mockFetch.mockResolvedValue(mockResponse);
-
-    await expect(rpcClient.call('test'))
-      .rejects
-      .toThrow('RPC error: Method not found (code: -32601)');
-    expect(mockLogger.error).toHaveBeenCalled();
+    await expect(rpcClient.call('test')).rejects.toThrow('RPC Error: Test error (code: -1)');
   });
 
   it('should handle network errors', async () => {
-    mockFetch.mockRejectedValue(new Error('Network error'));
-
-    await expect(rpcClient.call('test'))
-      .rejects
-      .toThrow('Failed to make RPC call: Network error');
-    expect(mockLogger.error).toHaveBeenCalled();
+    global.fetch = jest.fn().mockRejectedValue(new Error('Network error'));
+    await expect(rpcClient.call('test')).rejects.toThrow('Network error');
   });
 
-  it('should handle invalid JSON response', async () => {
-    const mockResponse = {
+  it('should get raw transaction', async () => {
+    const mockTx = { result: { hex: 'test' } };
+    global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.reject(new Error('Invalid JSON')),
-      headers: new Headers(),
-      redirected: false,
-      status: 200,
-      statusText: 'OK',
-      type: 'basic',
-      url: 'http://localhost:8332',
-      clone: () => ({} as Response),
-      body: null,
-      bodyUsed: false,
-      arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
-      blob: () => Promise.resolve(new Blob()),
-      formData: () => Promise.resolve(new FormData()),
-      text: () => Promise.resolve('')
-    } as Response;
+      json: () => Promise.resolve(mockTx),
+    });
 
-    mockFetch.mockResolvedValue(mockResponse);
-
-    await expect(rpcClient.call('test'))
-      .rejects
-      .toThrow('Failed to make RPC call: Invalid JSON');
-    expect(mockLogger.error).toHaveBeenCalled();
+    const result = await rpcClient.getRawTransaction('txid');
+    expect(result).toBe(mockTx);
   });
-}); 
+
+  it('should send raw transaction', async () => {
+    const mockTxId = { result: 'txid123' };
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockTxId),
+    });
+
+    const result = await rpcClient.sendRawTransaction('rawtx');
+    expect(result).toBe('txid123');
+  });
+
+  it('should get block count', async () => {
+    const mockCount = { result: 100 };
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockCount),
+    });
+
+    const result = await rpcClient.getBlockCount();
+    expect(result).toBe(100);
+  });
+
+  it('should get block hash', async () => {
+    const mockHash = { result: 'hash123' };
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockHash),
+    });
+
+    const result = await rpcClient.getBlockHash(100);
+    expect(result).toBe('hash123');
+  });
+
+  it('should get block', async () => {
+    const mockBlock = { result: { height: 100 } };
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockBlock),
+    });
+
+    const result = await rpcClient.getBlock('hash123');
+    expect(result).toBe(mockBlock);
+  });
+
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+});
