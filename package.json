@@ -8,6 +8,7 @@
     "prebuild": "rimraf dist",
     "build": "tsc",
     "test": "jest",
+    "test:coverage": "jest --coverage",
     "lint": "tsc --noEmit",
     "format": "prettier --write \"src/**/*.ts\"",
     "prepare": "npm run build"
