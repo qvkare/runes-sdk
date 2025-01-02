@@ -1,0 +1,46 @@
+# Development files
+src/
+tests/
+coverage/
+.github/
+.vscode/
+.idea/
+*.tsbuildinfo
+
+# Configuration files
+.eslintrc.json
+.prettierrc
+jest.config.js
+jest.setup.js
+jest.integration.config.js
+jest.performance.config.js
+tsconfig.json
+tsconfig.test.json
+
+# Documentation
+docs/
+*.md
+!README.md
+CRITICAL_IMPLEMENTATION_PLAN.md
+
+# Git files
+.git/
+.gitignore
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Cache
+.npm/
+.yarn/
+
+# Environment variables
+.env
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db 
