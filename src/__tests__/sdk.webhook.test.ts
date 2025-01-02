@@ -123,7 +123,9 @@ describe('RunesSDK Webhook Integration', () => {
 
       const mempoolMonitor = (sdk as any).mempoolMonitor;
 
-      // Error'ın yakalanıp loglandığından emin ol
+      // Ensure error is caught and logged
+      expect(mockLogger.error).toHaveBeenCalled();
+
       await expect(async () => {
         mempoolMonitor.emit('statusChanged', txStatus);
       }).not.toThrow();

@@ -10,6 +10,6 @@ module.exports = {
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   clearMocks: true,
-  testTimeout: 30000, // Integration testleri için daha uzun timeout
+  testTimeout: 30000, // Longer timeout for integration tests
   setupFiles: ['<rootDir>/src/__tests__/integration/setup.ts']
 }; 

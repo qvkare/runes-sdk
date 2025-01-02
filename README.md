@@ -4,7 +4,15 @@ A secure and scalable SDK for Runes. This SDK provides all the necessary tools f
 
 ## Features
 
-API Security
+### WebSocket Service
+* Real-time market data streaming
+* Position and trade updates
+* Account status monitoring
+* Connection management with auto-reconnect
+* Health monitoring and metrics
+* Rate limiting and security features
+
+### API Security
 - API Key management
 - Signature validation
 - IP whitelist support
@@ -49,6 +57,22 @@ const sdk = new RunesSDK({
   username: 'your-username',
   password: 'your-password',
   
+  // WebSocket configuration
+  websocket: {
+    port: 8080,
+    host: 'localhost',
+    maxConnections: 100,
+    rateLimit: {
+      maxRequestsPerMinute: 1000,
+      maxConnectionsPerIP: 50
+    },
+    security: {
+      enableIPWhitelist: true,
+      whitelistedIPs: ['127.0.0.1'],
+      requireAuthentication: true
+    }
+  },
+
   // Security settings
   securityConfig: {
     keyExpirationTime: 3600000, // 1 hour
@@ -89,6 +113,30 @@ const sdk = new RunesSDK({
     timeout: 5000
   }
 });
+
+// Initialize WebSocket connection
+const ws = sdk.getWebSocketService();
+
+// Subscribe to market updates
+ws.subscribe({
+  channel: 'market',
+  symbols: ['BTC/USDT'],
+  interval: '1m'
+});
+
+// Listen for position updates
+ws.on('position', (update) => {
+  console.log('Position Update:', update);
+});
+
+// Listen for trade updates
+ws.on('trade', (update) => {
+  console.log('Trade Update:', update);
+});
+
+// Monitor WebSocket health
+const metrics = ws.getMetrics();
+console.log('WebSocket Metrics:', metrics);
 
 // Generate API Key
 const apiKey = await sdk.generateApiKey({

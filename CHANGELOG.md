@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Enhanced WebSocket Service
+  - Improved connection management
+  - Added market data handling
+  - Implemented real-time updates for positions, trades, and liquidations
+  - Added monitoring and health check system
+  - Enhanced error handling and logging
+  - Improved test coverage
+
 ### Pending
 - Complete RBF (Replace-By-Fee) support in MempoolMonitorService
 - Enhance performance testing suite

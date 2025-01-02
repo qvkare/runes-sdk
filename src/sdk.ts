@@ -19,7 +19,7 @@ export class RunesSDK {
 
   private initialize(): void {
     if (this.config.websocket) {
-      this.webSocketService = new WebSocketService(this.config.websocket, this.logger);
+      this.webSocketService = new WebSocketService(this.logger);
     }
   }
 

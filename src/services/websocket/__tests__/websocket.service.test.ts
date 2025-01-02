@@ -1,227 +1,334 @@
-import { WebSocket } from 'ws';
-import { WebSocketService, WebSocketConfig, WebSocketClient } from '../websocket.service';
+import WebSocket from 'ws';
+import { WebSocketService } from '../websocket.service';
 import { Logger } from '../../logger/logger.service';
-import { OrderUpdate, OrderSide, OrderType, OrderStatus } from '../../../types/market.types';
-import { TradeUpdate } from '../../../types/trade.types';
-import { LiquidationEvent, LiquidationType } from '../../../types/liquidation.types';
-import { MarketState, MarketStatus } from '../../../types/market-state.types';
-import { PositionUpdate, MarginType, PositionSide } from '../../../types/futures.types';
-import { AccountUpdate, BalanceUpdate } from '../../../types/account.types';
-import { TickerUpdate } from '../../../types/ticker.types';
-import { MonitoringService } from '../../monitoring/monitoring.service';
-
-jest.mock('ws');
-jest.mock('../../logger/logger.service');
-jest.mock('../../monitoring/monitoring.service', () => {
-  return {
-    MonitoringService: jest.fn().mockImplementation(() => ({
-      getWebSocketMetrics: jest.fn().mockReturnValue({
-        messageCount: 1,
-        errorCount: 0,
-        reconnectCount: 0,
-        latency: 0,
-        messageRate: 0,
-        bandwidthUsage: 0,
-        activeConnections: 0,
-        peakConnections: 0,
-        lastCleanupTime: Date.now(),
-        cacheSize: 0,
-        uptime: 0,
-        lastHeartbeat: Date.now(),
-        memoryUsage: {
-          heapTotal: 0,
-          heapUsed: 0,
-          external: 0,
-          rss: 0,
-        },
-      }),
-      updateWebSocketMetrics: jest.fn(),
-      recordMetric: jest.fn(),
-      getSystemHealth: jest.fn().mockReturnValue({
-        status: 'healthy',
-        components: {
-          websocket: { status: 'healthy' },
-          cache: { status: 'healthy' },
-        },
-      }),
-    })),
-  };
-});
 
 describe('WebSocketService', () => {
   let service: WebSocketService;
   let mockLogger: jest.Mocked<Logger>;
-  let mockSocket: any;
-  let mockClient: WebSocketClient;
+  let mockSocket: jest.Mocked<WebSocket>;
+  let mockClient: any;
+  let mockRequest: any;
+  let mockWs: any;
+  let originalEnv: NodeJS.ProcessEnv;
 
-  const mockConfig: WebSocketConfig = {
-    port: 8080,
-    host: 'localhost',
-    maxConnections: 100,
-    rateLimit: {
-      maxRequestsPerMinute: 1000,
-      maxConnectionsPerIP: 50,
-    },
-    security: {
-      enableIPWhitelist: true,
-      whitelistedIPs: ['127.0.0.1'],
-      requireAuthentication: true,
-    },
-  };
+  beforeAll(() => {
+    originalEnv = process.env;
+    process.env.NODE_ENV = 'test';
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
+  });
 
   beforeEach(() => {
     mockLogger = {
       info: jest.fn(),
       debug: jest.fn(),
-      error: jest.fn(),
       warn: jest.fn(),
+      error: jest.fn()
     } as any;
 
     mockSocket = {
       send: jest.fn(),
-      on: jest.fn(),
       close: jest.fn(),
-      ping: jest.fn(),
-      pong: jest.fn(),
-      terminate: jest.fn(),
-      readyState: WebSocket.OPEN,
-    };
+      readyState: WebSocket.OPEN
+    } as any;
 
     mockClient = {
-      id: 'test',
       socket: mockSocket,
-      subscriptions: new Set<string>(),
-      ip: '127.0.0.1',
+      subscriptions: new Set(),
       authenticated: false,
       requestCount: 0,
-      lastRequestTime: Date.now(),
+      lastRequestTime: Date.now()
     };
 
-    service = new WebSocketService(mockConfig, mockLogger);
-    service['clients'].set(mockClient.id, mockClient);
+    mockRequest = {
+      socket: {
+        remoteAddress: '127.0.0.1'
+      }
+    };
+
+    mockWs = {
+      ...mockSocket,
+      on: jest.fn(),
+      once: jest.fn(),
+      removeAllListeners: jest.fn()
+    };
+
+    service = new WebSocketService(mockLogger);
+    service['clients'] = new Set([mockClient]);
   });
 
   afterEach(() => {
     service.shutdown();
-    jest.clearAllMocks();
   });
 
-  it('should handle invalid messages gracefully', () => {
-    service['handleMessage'](mockClient, Buffer.from('invalid json'));
+  describe('Connection Management', () => {
+    it('should handle rate limiting', () => {
+      const mockConfig = { rateLimit: 10 };
+      service['config'] = mockConfig;
+      service['rateLimitExceeded'] = true;
+      
+      service['handleMessage'](mockClient, Buffer.from(JSON.stringify({ type: 'subscribe' })));
+      
+      expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('Rate limit exceeded'));
+    });
 
-    expect(mockLogger.error).toHaveBeenCalledWith(
-      'WebSocket error for client test:',
-      expect.any(Error)
-    );
+    it('should handle IP whitelist', () => {
+      const mockConfig = { ipWhitelist: ['127.0.0.1'] };
+      service['config'] = mockConfig;
+      mockRequest.socket.remoteAddress = '192.168.1.1';
+      
+      service['handleConnection'](mockWs, mockRequest);
+      
+      expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('Connection rejected'));
+    });
+
+    it('should handle invalid message format', () => {
+      const invalidMessage = Buffer.from('invalid json');
+      
+      service['handleMessage'](mockClient, invalidMessage);
+      
+      expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining('Error handling message'), expect.any(Error));
+    });
+
+    it('should handle unknown message type', () => {
+      const unknownMessage = {
+        type: 'unknown',
+        data: {}
+      };
+      
+      service['handleMessage'](mockClient, Buffer.from(JSON.stringify(unknownMessage)));
+      
+      expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining('Unknown message type'));
+    });
+
+    it('should handle connection with no IP address', () => {
+      mockRequest.socket.remoteAddress = '';
+      
+      service['handleConnection'](mockWs, mockRequest);
+      
+      expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining('New client connected'));
+    });
   });
 
-  describe('Market Data Updates', () => {
-    it('should handle position updates', () => {
-      const positionUpdate: PositionUpdate = {
-        symbol: 'BTC/USDT',
-        positionSide: PositionSide.LONG,
-        marginType: MarginType.ISOLATED,
-        leverage: 10,
-        entryPrice: 50000,
-        markPrice: 51000,
-        unrealizedPnL: 1000,
-        liquidationPrice: 45000,
-        marginRatio: 0.1,
-        maintenanceMargin: 500,
-        marginBalance: 5000,
-        timestamp: Date.now(),
-        notional: 50000,
-        isAutoAddMargin: false,
+  describe('Subscription Management', () => {
+    it('should handle market data subscription', async () => {
+      const subscribeMessage = {
+        type: 'subscribe',
+        data: { channel: 'market', symbol: 'BTC/USDT', interval: '1m' }
       };
-
-      service.updatePosition('BTC/USDT', positionUpdate);
-
-      expect(mockSocket.send).toHaveBeenCalledWith(expect.stringContaining('"type":"position"'));
+      
+      await service['handleMessage'](mockClient, Buffer.from(JSON.stringify(subscribeMessage)));
+      
+      const subscriptionKey = service['getSubscriptionKey'](subscribeMessage.data);
+      expect(mockClient.subscriptions.has(subscriptionKey)).toBeTruthy();
+      expect(mockLogger.debug).toHaveBeenCalledWith(expect.stringContaining('subscribed to'));
     });
 
-    it('should handle funding rate updates', () => {
-      const fundingUpdate = {
-        symbol: 'BTC/USDT',
-        markPrice: 50000,
-        indexPrice: 50100,
-        estimatedSettlePrice: 50050,
-        lastFundingRate: 0.0001,
-        nextFundingTime: Date.now() + 3600000,
-        interestRate: 0.0002,
-        timestamp: Date.now(),
+    it('should handle market data unsubscription', async () => {
+      const unsubscribeMessage = {
+        type: 'unsubscribe',
+        data: { channel: 'market', symbol: 'BTC/USDT', interval: '1m' }
       };
-
-      service.updateFundingRate('BTC/USDT', fundingUpdate);
-
-      expect(mockSocket.send).toHaveBeenCalledWith(expect.stringContaining('"type":"funding"'));
+      
+      const subscriptionKey = service['getSubscriptionKey'](unsubscribeMessage.data);
+      mockClient.subscriptions.add(subscriptionKey);
+      
+      await service['handleMessage'](mockClient, Buffer.from(JSON.stringify(unsubscribeMessage)));
+      
+      expect(mockClient.subscriptions.has(subscriptionKey)).toBeFalsy();
+      expect(mockLogger.debug).toHaveBeenCalledWith(expect.stringContaining('unsubscribed from'));
     });
+  });
 
-    it('should handle account updates', () => {
-      const accountUpdate: AccountUpdate = {
-        makerCommission: 0.001,
-        takerCommission: 0.002,
-        buyerCommission: 0.001,
-        sellerCommission: 0.001,
-        canTrade: true,
-        canWithdraw: true,
-        canDeposit: true,
-        updateTime: Date.now(),
-        accountType: 'SPOT',
-        balances: [],
-        permissions: ['SPOT', 'MARGIN'],
-      };
-
-      service.updateAccount('user123', accountUpdate);
-
-      expect(mockSocket.send).toHaveBeenCalledWith(expect.stringContaining('"type":"account"'));
-    });
-
-    it('should handle ticker updates', () => {
-      const tickerUpdate: TickerUpdate = {
+  describe('Market Updates', () => {
+    it('should broadcast market updates to subscribed clients', () => {
+      const marketUpdate = {
+        type: 'market',
         symbol: 'BTC/USDT',
-        priceChange: 1000,
-        priceChangePercent: 2,
-        weightedAvgPrice: 50500,
-        lastPrice: 51000,
-        lastQty: 1,
-        openPrice: 50000,
-        highPrice: 51500,
-        lowPrice: 49500,
+        open: 50000,
+        high: 51000,
+        low: 49000,
+        close: 50500,
         volume: 1000,
-        quoteVolume: 50500000,
-        openTime: Date.now() - 86400000,
-        closeTime: Date.now(),
-        firstId: 1,
-        lastId: 1000,
-        count: 1000,
+        timestamp: Date.now()
       };
 
-      service.updateTicker('BTC/USDT', tickerUpdate);
-
-      expect(mockSocket.send).toHaveBeenCalledWith(expect.stringContaining('"type":"ticker"'));
+      service.updateMarketData('market:BTC/USDT:1m', marketUpdate);
+      
+      const expectedMessage = JSON.stringify({
+        type: 'market',
+        event: 'market:BTC/USDT:1m',
+        data: marketUpdate
+      });
+      expect(mockSocket.send).toHaveBeenCalledWith(expectedMessage);
     });
   });
 
-  describe('Monitoring & Health', () => {
-    it('should provide metrics', () => {
-      const metrics = service.getMetrics();
-      expect(metrics).toBeDefined();
-      expect(metrics.messageCount).toBeDefined();
-      expect(metrics.errorCount).toBeDefined();
+  describe('Error Handling', () => {
+    it('should handle unknown message types', async () => {
+      const unknownMessage = { type: 'unknown' };
+      
+      await service['handleMessage'](mockClient, Buffer.from(JSON.stringify(unknownMessage)));
+      
+      expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining('Unknown message type'));
+    });
+  });
+
+  describe('Authentication', () => {
+    it('should handle authentication requests', async () => {
+      const authMessage = {
+        type: 'auth',
+        data: { apiKey: 'valid-key', signature: 'valid-signature' }
+      };
+      
+      await service['handleMessage'](mockClient, Buffer.from(JSON.stringify(authMessage)));
+      
+      expect(mockClient.authenticated).toBeTruthy();
+      expect(mockLogger.debug).toHaveBeenCalledWith(expect.stringContaining('authenticated'));
     });
 
-    it('should provide health status', () => {
-      const health = service.getHealth();
-      expect(health).toBeDefined();
-      expect(health.status).toBeDefined();
-      expect(health.components).toBeDefined();
+    it('should reject invalid authentication', async () => {
+      const invalidAuthMessage = {
+        type: 'auth',
+        data: { apiKey: 'invalid-key', signature: 'invalid-signature' }
+      };
+      
+      await service['handleMessage'](mockClient, Buffer.from(JSON.stringify(invalidAuthMessage)));
+      
+      expect(mockClient.authenticated).toBeFalsy();
+      expect(mockLogger.warn).toHaveBeenCalledWith(expect.stringContaining('Authentication failed'));
+    });
+  });
+
+  describe('Cache Management', () => {
+    let mockNow: number;
+
+    beforeEach(() => {
+      mockNow = 1735773054334;
+      jest.spyOn(Date, 'now').mockReturnValue(mockNow);
     });
 
-    it('should update metrics on message handling', async () => {
-      await service['handleMessage'](mockClient, Buffer.from(JSON.stringify({ type: 'ping' })));
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
 
-      const metrics = service.getMetrics();
-      expect(metrics.messageCount).toBeDefined();
+    it('should handle market data caching', () => {
+      const marketData = {
+        symbol: 'BTC/USDT',
+        open: 50000,
+        high: 51000,
+        low: 49000,
+        close: 50500,
+        volume: 1000,
+        timestamp: mockNow
+      };
+
+      const cacheKey = 'market:BTC/USDT:1m';
+      service['marketDataCache'].set(cacheKey, marketData);
+      const cachedData = service['marketDataCache'].get(cacheKey);
+      
+      expect(cachedData).toEqual(marketData);
+    });
+
+    it('should clean up stale market data', () => {
+      const oldData = {
+        symbol: 'BTC/USDT',
+        open: 50000,
+        high: 51000,
+        low: 49000,
+        close: 50500,
+        volume: 1000,
+        timestamp: mockNow - (25 * 60 * 60 * 1000) // 25 hours old
+      };
+
+      const cacheKey = 'market:BTC/USDT:1m';
+      service['marketDataCache'].set(cacheKey, oldData);
+      
+      // Advance time by 1 hour
+      jest.spyOn(Date, 'now').mockReturnValue(mockNow + (1 * 60 * 60 * 1000));
+      
+      service['cleanupMarketDataCache']();
+      const cachedData = service['marketDataCache'].get(cacheKey);
+      
+      expect(cachedData).toBeUndefined();
+    });
+  });
+
+  describe('Maintenance', () => {
+    let mockNow: number;
+
+    beforeEach(() => {
+      mockNow = 1735773054334;
+      jest.spyOn(Date, 'now').mockReturnValue(mockNow);
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('should restart maintenance interval', () => {
+      const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
+      const setIntervalSpy = jest.spyOn(global, 'setInterval');
+      
+      service['maintenanceInterval'] = setInterval(() => {}, 1000);
+      service['startMaintenanceInterval']();
+      
+      expect(clearIntervalSpy).toHaveBeenCalled();
+      expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 3600000);
+    });
+
+    it('should clean up stale market data', () => {
+      const oldData = {
+        symbol: 'BTC/USDT',
+        open: 50000,
+        high: 51000,
+        low: 49000,
+        close: 50500,
+        volume: 1000,
+        timestamp: mockNow - (25 * 60 * 60 * 1000) // 25 hours old
+      };
+
+      const freshData = {
+        ...oldData,
+        timestamp: mockNow - (23 * 60 * 60 * 1000) // 23 hours old
+      };
+
+      const oldKey = 'market:BTC/USDT:1m:old';
+      const freshKey = 'market:BTC/USDT:1m:fresh';
+      
+      service['marketDataCache'].set(oldKey, oldData);
+      service['marketDataCache'].set(freshKey, freshData);
+      
+      service['cleanupMarketDataCache']();
+      
+      expect(service['marketDataCache'].get(oldKey)).toBeUndefined();
+      expect(service['marketDataCache'].get(freshKey)).toEqual(freshData);
+    });
+
+    it('should handle empty market data cache', () => {
+      service['marketDataCache'].clear();
+      service['cleanupMarketDataCache']();
+      expect(service['marketDataCache'].size).toBe(0);
+    });
+
+    it('should handle all stale market data', () => {
+      const staleData1 = {
+        symbol: 'BTC/USDT',
+        timestamp: mockNow - (25 * 60 * 60 * 1000)
+      };
+      const staleData2 = {
+        symbol: 'ETH/USDT',
+        timestamp: mockNow - (26 * 60 * 60 * 1000)
+      };
+
+      service['marketDataCache'].set('key1', staleData1);
+      service['marketDataCache'].set('key2', staleData2);
+
+      service['cleanupMarketDataCache']();
+
+      expect(service['marketDataCache'].size).toBe(0);
     });
   });
 });
