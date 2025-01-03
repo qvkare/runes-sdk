@@ -1,0 +1,113 @@
+# Production environment values
+replicaCount: 3
+
+image:
+  repository: ghcr.io/yourusername/runes-sdk
+  tag: latest
+  pullPolicy: IfNotPresent
+
+ingress:
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  hosts:
+    - host: api.runesdk.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: runes-sdk-tls
+      hosts:
+        - api.runesdk.com
+
+resources:
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+  requests:
+    cpu: 1000m
+    memory: 1Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 70
+
+# Pod anti-affinity for high availability
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - runes-sdk
+        topologyKey: kubernetes.io/hostname
+
+# Application config
+config:
+  logLevel: "info"
+  environment: "production"
+  metrics:
+    enabled: true
+  cache:
+    enabled: true
+    size: "2Gi"
+    ttl: 7200
+  rateLimit:
+    enabled: true
+    requestsPerSecond: 1000
+    burstSize: 2000
+
+# Redis cache (production)
+redis:
+  enabled: true
+  host: "redis-master.redis.svc.cluster.local"
+  port: 6379
+
+# Monitoring
+prometheus:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 15s
+  alertmanager:
+    enabled: true
+    config:
+      global:
+        resolve_timeout: 5m
+      route:
+        group_by: ['alertname', 'job']
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 12h
+        receiver: 'slack'
+        routes:
+        - match:
+            severity: critical
+          receiver: 'pagerduty'
+      receivers:
+      - name: 'slack'
+        slack_configs:
+        - channel: '#alerts'
+          send_resolved: true
+      - name: 'pagerduty'
+        pagerduty_configs:
+        - service_key: '${PAGERDUTY_SERVICE_KEY}'
+
+grafana:
+  enabled: true
+  dashboards:
+    enabled: true
+  persistence:
+    enabled: true
+    size: 10Gi
+  adminPassword: '${GRAFANA_ADMIN_PASSWORD}' 

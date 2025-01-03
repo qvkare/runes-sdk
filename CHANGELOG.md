@@ -1,62 +1,62 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to the Runes SDK will be documented in this file.
 
-## [Released]
-
-### Added
-- Enhanced WebSocket Service
-  - Improved connection management
-  - Added market data handling
-  - Implemented real-time updates for positions, trades, and liquidations
-  - Added monitoring and health check system
-  - Enhanced error handling and logging
-  - Improved test coverage
-
-## [0.1.10] - 2024-01-01
-
-### Changed
-- Converted all Turkish content to English
-- Updated .gitignore and .npmignore files for better file management
+## [0.1.12] - 2024-01-03
 
 ### Added
-- Mempool Monitoring System
-  - Transaction status tracking
-  - Confirmation monitoring
-  - Basic RBF support
-- Transaction Validation Mechanisms
-  - Address format validation
-  - Balance verification
-  - Fee validation
-- API Security System
-  - API key management
-  - Request signature validation
-  - IP whitelist functionality
-- Rate Limiting System
-  - Time-window based limiting
-  - Per-user and per-action limits
-  - Automatic cleanup
+- Initial release of Runes SDK with TypeScript and Rust implementation
+- Core functionality for transaction querying and monitoring
+- WebSocket support for real-time updates
+- Redis caching integration
+- Prometheus & Grafana monitoring setup
+- Comprehensive test coverage for both TypeScript and Rust
+- Documentation and examples
 
-### Changed
-- Improved error handling across all services
-- Enhanced logging system
-- Updated test coverage
+### Features
+- High-performance Rust core with TypeScript bindings
+- Real-time WebSocket support for live updates
+- Efficient caching with Redis integration
+- Built-in monitoring with Prometheus & Grafana
+- Secure transaction handling
+- CEX integration support
 
-### Fixed
-- Memory leak in rate limiter
-- Race condition in transaction validation
-- Incorrect error messages in security service
+### Documentation
+- Added comprehensive API documentation
+- Added usage examples:
+  - Basic transaction handling
+  - WebSocket real-time updates
+  - Monitoring and metrics
+- Added development setup guide
+- Added project structure documentation
 
-## [1.0.0] - 2023-12-31
+### Testing
+- Added TypeScript unit tests
+- Added Rust unit tests
+- Added integration tests
+- Added test coverage reporting
 
-### Added
-- Initial release of Runes SDK
-- Basic transaction functionality
-- RPC client implementation
-- Core validation system
-- Basic security features
+### Infrastructure
+- Added Docker support
+- Added Helm charts for Kubernetes deployment
+- Added Prometheus configuration
+- Added Grafana dashboards
+- Added development environment setup
 
-### Security
-- Implemented input validation
-- Added API key authentication
-- Basic rate limiting 
+### Dependencies
+- TypeScript v5.7.2
+- Rust (latest stable)
+- Node.js v16+
+- Redis for caching
+- Prometheus for metrics
+- Grafana for monitoring
+
+### Known Issues
+- CI/CD pipeline implementation pending
+- Some mock implementations in Rust core need to be replaced with actual implementations
+
+### Coming Soon
+- CI/CD pipeline with GitHub Actions
+- Automated release process
+- Enhanced security features
+- Additional CEX integrations 

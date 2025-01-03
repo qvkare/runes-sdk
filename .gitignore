@@ -1,33 +1,72 @@
 # Dependencies
 node_modules/
-.npm/
-.yarn/
+target/
 
-# Build output
+# Build outputs
 dist/
-*.tsbuildinfo
+build/
+*.o
+*.so
+*.dylib
+*.dll
 
-# IDE files
-.vscode/
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
 .idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
 
 # Logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Environment variables
-.env
-.env.local
-.env.*.local
-
-# OS files
-.DS_Store
-Thumbs.db 
-
-# Test coverage
+# Testing
 coverage/
+.nyc_output/
 
-# Implementation plans
-CRITICAL_IMPLEMENTATION_PLAN.md 
+# Rust
+Cargo.lock
+**/*.rs.bk
+
+# Cache
+.cache/
+.npm/
+.cargo/
+
+# Docker
+.docker/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Debug
+debug/
+.debug/
+
+# Redis
+dump.rdb
+*.rdb
+
+# Prometheus & Grafana data
+prometheus/data/
+grafana/data/
+
+# Local development files
+local/
+dev/
+*.local.*
+
+# Package files
+*.tgz
+*.tar.gz 

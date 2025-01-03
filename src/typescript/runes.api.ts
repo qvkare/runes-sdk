@@ -5,6 +5,6 @@ export class RunesAPI {
   constructor(private readonly rpcClient: RpcClient) {}
 
   async getTransaction(txid: string): Promise<Transaction> {
-    return this.rpcClient.getTransaction(txid);
+    return this.rpcClient.call<Transaction>('gettransaction', [txid]);
   }
 }

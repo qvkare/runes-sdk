@@ -1,0 +1,109 @@
+# Default values for runes-sdk
+replicaCount: 1
+
+image:
+  repository: ghcr.io/yourusername/runes-sdk
+  tag: latest
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsUser: 1001
+  runAsGroup: 0
+  fsGroup: 1001
+
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1001
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: api.runesdk.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: runes-sdk-tls
+      hosts:
+        - api.runesdk.com
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Prometheus monitoring
+prometheus:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 15s
+
+# Grafana dashboards
+grafana:
+  enabled: true
+  dashboards:
+    enabled: true
+    label: grafana_dashboard
+
+# Application config
+config:
+  logLevel: "info"
+  environment: "production"
+  metrics:
+    enabled: true
+    path: /metrics
+  cache:
+    enabled: true
+    size: "1Gi"
+    ttl: 3600
+  rateLimit:
+    enabled: true
+    requestsPerSecond: 100
+    burstSize: 200
+
+# Redis cache (optional)
+redis:
+  enabled: false
+  host: ""
+  port: 6379
+  password: "" 

@@ -1,0 +1,60 @@
+# Staging environment values
+replicaCount: 1
+
+image:
+  repository: ghcr.io/yourusername/runes-sdk
+  tag: staging
+  pullPolicy: Always
+
+ingress:
+  enabled: true
+  hosts:
+    - host: staging.api.runesdk.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: runes-sdk-staging-tls
+      hosts:
+        - staging.api.runesdk.com
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+
+# Application config
+config:
+  logLevel: "debug"
+  environment: "staging"
+  metrics:
+    enabled: true
+  cache:
+    enabled: true
+    size: "512Mi"
+    ttl: 1800
+  rateLimit:
+    enabled: true
+    requestsPerSecond: 200
+    burstSize: 300
+
+# Monitoring
+prometheus:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 15s
+
+grafana:
+  enabled: true
+  dashboards:
+    enabled: true 

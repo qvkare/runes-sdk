@@ -1,285 +1,175 @@
 # Runes SDK
 
-A secure and scalable SDK for Runes. This SDK provides all the necessary tools for managing, validating, and monitoring Runes transactions.
+A comprehensive SDK for interacting with the Runes protocol, built with TypeScript and Rust.
 
 ## Features
 
-### WebSocket Service
-* Real-time market data streaming
-* Position and trade updates
-* Account status monitoring
-* Connection management with auto-reconnect
-* Health monitoring and metrics
-* Rate limiting and security features
-* [See](examples/websocket-example.md) for a complete example
-
-### API Security
-- API Key management
-- Signature validation
-- IP whitelist support
-
-Rate Limiting
-- Time window based limits
-- Flexible limit configuration
-- Automatic cleanup
-
-Transaction Validation
-- Address format validation
-- Balance checks
-- Fee validation
-- Amount limits
-
-Mempool Monitoring
-- Transaction status tracking
-- Confirmation count checks
-- RBF support
-
-Webhook Integration
-- Event-based notifications
-- Configurable retry mechanism
-- Multiple endpoint support
-- Flexible event filtering
-- [See](examples/webhook-integration.md) for a complete example
+- 🚀 High-performance Rust core with TypeScript bindings
+- 🔄 Real-time WebSocket support for live updates
+- 💾 Efficient caching with Redis integration
+- 📊 Built-in monitoring with Prometheus & Grafana
+- 🔒 Secure transaction handling
+- 🔌 CEX integration support
+- 🧪 Comprehensive test coverage
 
 ## Installation
 
 ```bash
-npm install @runes/sdk
+npm install runes-sdk
 ```
 
 ## Quick Start
 
 ```typescript
-import { RunesSDK } from '@runes/sdk';
+import { RunesSDK } from 'runes-sdk';
 
-// SDK Configuration
+// Initialize SDK
 const sdk = new RunesSDK({
-  host: 'your-node-url',
-  username: 'your-username',
-  password: 'your-password',
-  
-  // WebSocket configuration
-  websocket: {
-    port: 8080,
-    host: 'localhost',
-    maxConnections: 100,
-    rateLimit: {
-      maxRequestsPerMinute: 1000,
-      maxConnectionsPerIP: 50
+    rpcUrl: 'http://your-node:8332',
+    wsUrl: 'ws://your-node:8333'  // Optional WebSocket support
+});
+
+// Connect to WebSocket (optional)
+sdk.connect();
+
+// Query transaction
+const tx = await sdk.getTransaction('your-tx-id');
+console.log(tx);
+
+// Cleanup
+sdk.disconnect();
+```
+
+## Architecture
+
+The SDK follows a hybrid architecture:
+- Core functionality implemented in Rust for performance
+- TypeScript wrapper for ease of use
+- Shared types between Rust and TypeScript
+- WebSocket support for real-time updates
+- Redis caching for improved performance
+- Prometheus & Grafana integration for monitoring
+
+## Development Setup
+
+### Prerequisites
+
+- Node.js (v16 or later)
+- Rust (latest stable)
+- Docker (for local development)
+
+### Local Development
+
+1. Clone the repository:
+```bash
+git clone https://github.com/qvkare/runes-sdk.git
+cd runes-sdk
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Start development environment:
+```bash
+docker-compose up
+```
+
+4. Run tests:
+```bash
+npm run test        # Run all tests
+npm run test:ts     # Run TypeScript tests
+npm run test:rust   # Run Rust tests
+```
+
+5. Build the project:
+```bash
+npm run build
+```
+
+## Project Structure
+
+```
+src/
+├── typescript/           # TypeScript implementation
+│   ├── api/
+│   ├── services/
+│   ├── types/
+│   └── utils/
+├── rust/                # Rust core implementation
+│   ├── api/
+│   ├── services/
+│   └── types/
+└── shared/             # Shared types and utilities
+    ├── constants/
+    └── interfaces/
+
+deploy/
+├── helm/              # Kubernetes Helm charts
+├── prometheus/        # Prometheus configuration
+└── grafana/          # Grafana dashboards
+
+docs/                 # Documentation
+└── api/             # API documentation
+
+examples/            # Usage examples
+├── basic/
+├── websocket/
+└── monitoring/
+```
+
+## Configuration
+
+The SDK can be configured through environment variables or the configuration object:
+
+```typescript
+const sdk = new RunesSDK({
+    rpcUrl: process.env.RUNES_RPC_URL,
+    wsUrl: process.env.RUNES_WS_URL,
+    redis: {
+        host: process.env.REDIS_HOST,
+        port: process.env.REDIS_PORT
     },
-    security: {
-      enableIPWhitelist: true,
-      whitelistedIPs: ['127.0.0.1'],
-      requireAuthentication: true
+    monitoring: {
+        enabled: true,
+        prometheusPort: 9090
     }
-  },
-
-  // Security settings
-  securityConfig: {
-    keyExpirationTime: 3600000, // 1 hour
-    maxKeysPerUser: 5,
-    requiredKeyStrength: 256,
-    ipWhitelistEnabled: true
-  },
-
-  // Rate limit settings
-  rateLimitConfig: {
-    windowSize: 60000,           // 1 minute
-    maxRequestsPerWindow: 100,   // 100 requests per minute
-    cleanupInterval: 300000,     // 5 minutes
-    cleanupThreshold: 3600000    // 1 hour
-  },
-
-  // Validation settings
-  validationConfig: {
-    addressRegex: /^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,39}$/,
-    maxTransactionAmount: '1000000000',
-    minFee: '500',
-    maxFee: '100000'
-  },
-
-  // Mempool settings
-  mempoolConfig: {
-    maxWatchTime: 3600000,      // 1 hour
-    checkInterval: 15000,        // 15 seconds
-    requiredConfirmations: 6,
-    maxRetries: 3
-  },
-
-  // Webhook settings
-  webhookConfig: {
-    url: 'https://your-webhook-url.com',
-    events: ['TRANSACTION_CONFIRMED', 'TRANSACTION_FAILED'],
-    retryCount: 3,
-    timeout: 5000
-  }
 });
-
-// Initialize WebSocket connection
-const ws = sdk.getWebSocketService();
-
-// Subscribe to market updates
-ws.subscribe({
-  channel: 'market',
-  symbols: ['BTC/USDT'],
-  interval: '1m'
-});
-
-// Listen for position updates
-ws.on('position', (update) => {
-  console.log('Position Update:', update);
-});
-
-// Listen for trade updates
-ws.on('trade', (update) => {
-  console.log('Trade Update:', update);
-});
-
-// Monitor WebSocket health
-const metrics = ws.getMetrics();
-console.log('WebSocket Metrics:', metrics);
-
-// Generate API Key
-const apiKey = await sdk.generateApiKey({
-  userId: 'user123',
-  permissions: ['transaction:write']
-});
-
-// Send Transaction
-const transaction = {
-  from: 'sender-address',
-  to: 'receiver-address',
-  amount: '100000',
-  fee: '1000'
-};
-
-// Validate Transaction
-const validationResult = await sdk.validateTransaction(transaction);
-if (validationResult.isValid) {
-  // Send and monitor transaction
-  const txid = 'transaction-id';
-  await sdk.watchTransaction(txid);
-}
 ```
 
-## Detailed Documentation
+## Monitoring
 
-### API Security
+The SDK includes built-in monitoring with Prometheus and Grafana:
 
-Available features for API security:
-
-```typescript
-// Generate API Key
-const apiKey = await sdk.generateApiKey({
-  userId: 'user123',
-  permissions: ['transaction:write'],
-  ipWhitelist: ['127.0.0.1']
-});
-
-// Validate API Key
-const validation = await sdk.validateApiKey(
-  apiKey,
-  signature,
-  payload,
-  ipAddress
-);
-```
-
-### Rate Limiting
-
-To control request limits:
-
-```typescript
-// Check rate limit
-await sdk.checkLimit('user123', 'transaction:write');
-
-// Check limit status
-const status = await sdk.getLimitStatus('user123', 'transaction:write');
-
-// Reset limit
-await sdk.resetLimit('user123', 'transaction:write');
-```
-
-### Transaction Validation
-
-To validate transactions:
-
-```typescript
-// Validate transaction
-const result = await sdk.validateTransaction({
-  from: 'sender-address',
-  to: 'receiver-address',
-  amount: '100000',
-  fee: '1000'
-});
-
-if (result.isValid) {
-  console.log('Transaction is valid');
-} else {
-  console.error('Errors:', result.errors);
-  console.warn('Warnings:', result.warnings);
-}
-```
-
-### Mempool Monitoring
-
-To monitor transactions:
-
-```typescript
-// Watch transaction
-await sdk.watchTransaction('txid');
-
-// Check status
-const status = await sdk.getTransactionStatus('txid');
-
-// Stop watching
-sdk.stopWatchingTransaction('txid');
-```
-
-### Webhook Integration
-
-To receive event notifications:
-
-```typescript
-// Register webhook
-const webhookId = 'my-webhook';
-const webhookConfig = {
-  url: 'https://your-webhook-url.com',
-  events: ['TRANSACTION_CONFIRMED', 'TRANSACTION_FAILED'],
-  retryCount: 3,
-  timeout: 5000
-};
-
-sdk.registerWebhook(webhookId, webhookConfig);
-
-// Webhook will receive POST requests with event data
-// Example event payload:
-{
-  "type": "TRANSACTION_CONFIRMED",
-  "data": {
-    "txid": "transaction-id",
-    "confirmations": 6,
-    "timestamp": 1641234567890
-  }
-}
-```
+1. Metrics available at `:9090/metrics`
+2. Pre-configured Grafana dashboards
+3. Performance monitoring
+4. Error tracking
+5. WebSocket connection status
 
 ## Testing
 
 ```bash
-# Run unit tests
-npm test
-
-# Run integration tests
-npm run test:integration
-
 # Run all tests
-npm run test:all
+npm run test
 
-# Run tests with coverage report
+# Run specific test suites
+npm run test:ts
+npm run test:rust
+
+# Run with coverage
 npm run test:coverage
 ```
 
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
 ## License
 
-MIT 
+ISC License - see the [LICENSE](LICENSE) file for details 
