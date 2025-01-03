@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use serde_json::Value;
+use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RunesTransactionResponse {
@@ -51,13 +51,25 @@ pub struct RpcClient {
 }
 
 impl RpcClient {
+    #[must_use]
     pub fn new(url: String, timeout: u64) -> Self {
         Self { url, timeout }
     }
 
-    pub async fn call<T: serde::de::DeserializeOwned>(&self, method: &str, params: Vec<String>) -> Result<T, Error> {
+    /// Makes an RPC call to the node
+    /// 
+    /// # Errors
+    /// Returns an error if:
+    /// - The network request fails
+    /// - The response cannot be parsed
+    /// - The node returns an error
+    pub async fn call<T: serde::de::DeserializeOwned>(
+        &self,
+        method: &str,
+        params: Vec<String>,
+    ) -> Result<T, Error> {
         let client = reqwest::Client::new();
-        
+
         let request_body = serde_json::json!({
             "jsonrpc": "2.0",
             "method": method,
@@ -93,13 +105,19 @@ impl RpcClient {
             .get("result")
             .ok_or_else(|| Error::ParseError("Missing 'result' field".to_string()))?;
 
-        serde_json::from_value(result.clone())
-            .map_err(|e| Error::ParseError(e.to_string()))
+        serde_json::from_value(result.clone()).map_err(|e| Error::ParseError(e.to_string()))
     }
 
+    /// Checks if the RPC node is healthy and responding
+    /// 
+    /// # Errors
+    /// Returns an error if:
+    /// - The network request fails
+    /// - The node is not responding
     pub async fn health_check(&self) -> Result<(), Error> {
         let params = vec![];
-        self.call::<serde_json::Value>("getblockchaininfo", params).await?;
+        self.call::<serde_json::Value>("getblockchaininfo", params)
+            .await?;
         Ok(())
     }
 }
@@ -111,10 +129,18 @@ pub struct RunesAPI {
 }
 
 impl RunesAPI {
+    #[must_use]
     pub fn new(client: RpcClient) -> Self {
         Self { client }
     }
 
+    /// Gets transaction details by transaction ID
+    /// 
+    /// # Errors
+    /// Returns an error if:
+    /// - The transaction is not found
+    /// - The network request fails
+    /// - The response cannot be parsed
     pub async fn get_transaction(&self, txid: &str) -> Result<Transaction, Error> {
         let params = vec![txid.to_string()];
         self.client.call("gettransaction", params).await
@@ -134,16 +160,25 @@ pub struct WebSocketService {
 }
 
 impl WebSocketService {
+    #[must_use]
     pub fn new(config: WebSocketConfig) -> Self {
         Self { config }
     }
 
-    pub async fn connect(&self) -> Result<(), Error> {
+    /// Connects to the WebSocket endpoint
+    /// 
+    /// # Errors
+    /// Returns an error if:
+    /// - The connection cannot be established
+    /// - The maximum reconnection attempts are exceeded
+    pub fn connect(&self) -> Result<(), Error> {
         // WebSocket bağlantı implementasyonu için config kullanılacak
-        let _ws_url = &self.config.url;
-        let _reconnect_interval = self.config.reconnect_interval;
-        let _max_attempts = self.config.max_reconnect_attempts;
-        todo!("Implement WebSocket connection using config")
+        // Config değerlerini kullanarak bağlantı kurulacak
+        todo!("Implement WebSocket connection using config: url={}, reconnect_interval={:?}, max_attempts={:?}", 
+            self.config.url,
+            self.config.reconnect_interval,
+            self.config.max_reconnect_attempts
+        )
     }
 }
 
@@ -167,21 +202,23 @@ pub enum TransactionType {
 pub enum Error {
     InvalidTransaction(String),
     NetworkError(String),
-    RateLimitExceeded,
+    JsonRpcError(String, String),
     DatabaseError(String),
     NodeConnectionError(String),
     ParseError(String),
+    WebSocketError(String),
 }
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::InvalidTransaction(msg) => write!(f, "Invalid transaction: {}", msg),
-            Error::NetworkError(msg) => write!(f, "Network error: {}", msg),
-            Error::RateLimitExceeded => write!(f, "Rate limit exceeded"),
-            Error::DatabaseError(msg) => write!(f, "Database error: {}", msg),
-            Error::NodeConnectionError(msg) => write!(f, "Node connection error: {}", msg),
-            Error::ParseError(msg) => write!(f, "Parse error: {}", msg),
+            Error::InvalidTransaction(msg) => write!(f, "Invalid transaction: {msg}"),
+            Error::NetworkError(msg) => write!(f, "Network error: {msg}"),
+            Error::JsonRpcError(code, msg) => write!(f, "JSON-RPC error {code}: {msg}"),
+            Error::DatabaseError(msg) => write!(f, "Database error: {msg}"),
+            Error::NodeConnectionError(msg) => write!(f, "Node connection error: {msg}"),
+            Error::ParseError(msg) => write!(f, "Parse error: {msg}"),
+            Error::WebSocketError(msg) => write!(f, "WebSocket error: {msg}"),
         }
     }
 }
@@ -191,8 +228,8 @@ impl std::error::Error for Error {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use wiremock::{Mock, MockServer, ResponseTemplate};
     use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
 
     #[tokio::test]
     async fn test_rpc_client_health_check() {
@@ -229,7 +266,7 @@ mod tests {
                     "txid": "test_tx",
                     "block_height": 12345,
                     "confirmations": 6,
-                    "timestamp": 1234567890,
+                    "timestamp": 1_234_567_890,
                     "transaction_type": "Transfer"
                 },
                 "id": 1
@@ -240,11 +277,11 @@ mod tests {
         let client = RpcClient::new(mock_server.uri(), 5000);
         let api = RunesAPI::new(client);
         let tx = api.get_transaction("test_tx").await.unwrap();
-        
+
         assert_eq!(tx.txid, "test_tx");
         assert_eq!(tx.block_height, Some(12345));
         assert_eq!(tx.confirmations, 6);
-        assert_eq!(tx.timestamp, 1234567890);
+        assert_eq!(tx.timestamp, 1_234_567_890);
         assert!(matches!(tx.transaction_type, TransactionType::Transfer));
     }
-} 
+}
