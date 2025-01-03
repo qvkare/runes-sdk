@@ -11,6 +11,7 @@ A secure and scalable SDK for Runes. This SDK provides all the necessary tools f
 * Connection management with auto-reconnect
 * Health monitoring and metrics
 * Rate limiting and security features
+* See [examples/websocket-example.md](examples/websocket-example.md) for a complete example
 
 ### API Security
 - API Key management
@@ -38,7 +39,7 @@ Webhook Integration
 - Configurable retry mechanism
 - Multiple endpoint support
 - Flexible event filtering
-- See [examples/webhook-integration.ts](examples/webhook-integration.ts) for a complete example
+- See [examples/webhook-integration.md](examples/webhook-integration.md) for a complete example
 
 ## Installation
 
