@@ -57,7 +57,7 @@ impl RpcClient {
     }
 
     /// Makes an RPC call to the node
-    /// 
+    ///
     /// # Errors
     /// Returns an error if:
     /// - The network request fails
@@ -109,7 +109,7 @@ impl RpcClient {
     }
 
     /// Checks if the RPC node is healthy and responding
-    /// 
+    ///
     /// # Errors
     /// Returns an error if:
     /// - The network request fails
@@ -135,7 +135,7 @@ impl RunesAPI {
     }
 
     /// Gets transaction details by transaction ID
-    /// 
+    ///
     /// # Errors
     /// Returns an error if:
     /// - The transaction is not found
@@ -166,7 +166,7 @@ impl WebSocketService {
     }
 
     /// Connects to the WebSocket endpoint
-    /// 
+    ///
     /// # Errors
     /// Returns an error if:
     /// - The connection cannot be established
