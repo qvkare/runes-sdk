@@ -55,19 +55,57 @@ impl RpcClient {
         Self { url, timeout }
     }
 
-    pub async fn call<T>(&self, _method: &str, _params: Vec<String>) -> Result<T, Error> {
-        // RPC çağrısı implementasyonu için URL ve timeout kullanılacak
-        let _request_url = &self.url;
-        let _request_timeout = self.timeout;
-        todo!("Implement RPC call")
+    pub async fn call<T: serde::de::DeserializeOwned>(&self, method: &str, params: Vec<String>) -> Result<T, Error> {
+        let client = reqwest::Client::new();
+        
+        let request_body = serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": method,
+            "params": params,
+            "id": 1
+        });
+
+        let response = client
+            .post(&self.url)
+            .timeout(std::time::Duration::from_secs(self.timeout))
+            .json(&request_body)
+            .send()
+            .await
+            .map_err(|e| Error::NetworkError(e.to_string()))?;
+
+        if !response.status().is_success() {
+            return Err(Error::NetworkError(format!(
+                "HTTP error: {}",
+                response.status()
+            )));
+        }
+
+        let response_body: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| Error::ParseError(e.to_string()))?;
+
+        if let Some(error) = response_body.get("error") {
+            return Err(Error::InvalidTransaction(error.to_string()));
+        }
+
+        let result = response_body
+            .get("result")
+            .ok_or_else(|| Error::ParseError("Missing 'result' field".to_string()))?;
+
+        serde_json::from_value(result.clone())
+            .map_err(|e| Error::ParseError(e.to_string()))
     }
 
     pub async fn health_check(&self) -> Result<(), Error> {
-        Ok(()) // Mock implementation
+        let params = vec![];
+        self.call::<serde_json::Value>("getblockchaininfo", params).await?;
+        Ok(())
     }
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct RunesAPI {
     client: RpcClient,
 }
@@ -78,14 +116,8 @@ impl RunesAPI {
     }
 
     pub async fn get_transaction(&self, txid: &str) -> Result<Transaction, Error> {
-        // Mock implementation for testing
-        Ok(Transaction {
-            txid: txid.to_string(),
-            block_height: Some(12345),
-            confirmations: 6,
-            timestamp: 1234567890,
-            transaction_type: TransactionType::Transfer,
-        })
+        let params = vec![txid.to_string()];
+        self.client.call("gettransaction", params).await
     }
 }
 
@@ -115,7 +147,7 @@ impl WebSocketService {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Transaction {
     pub txid: String,
     pub block_height: Option<u64>,
@@ -124,7 +156,7 @@ pub struct Transaction {
     pub transaction_type: TransactionType,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum TransactionType {
     Mint,
     Transfer,
@@ -133,25 +165,79 @@ pub enum TransactionType {
 
 #[derive(Debug)]
 pub enum Error {
-    RpcError(String),
-    WebSocketError(String),
+    InvalidTransaction(String),
+    NetworkError(String),
+    RateLimitExceeded,
+    DatabaseError(String),
+    NodeConnectionError(String),
     ParseError(String),
 }
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::InvalidTransaction(msg) => write!(f, "Invalid transaction: {}", msg),
+            Error::NetworkError(msg) => write!(f, "Network error: {}", msg),
+            Error::RateLimitExceeded => write!(f, "Rate limit exceeded"),
+            Error::DatabaseError(msg) => write!(f, "Database error: {}", msg),
+            Error::NodeConnectionError(msg) => write!(f, "Node connection error: {}", msg),
+            Error::ParseError(msg) => write!(f, "Parse error: {}", msg),
+        }
+    }
+}
+
+impl std::error::Error for Error {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+    use wiremock::matchers::{method, path};
 
     #[tokio::test]
     async fn test_rpc_client_health_check() {
-        let client = RpcClient::new("http://localhost:8332".to_string(), 5000);
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "jsonrpc": "2.0",
+                "result": {
+                    "chain": "test",
+                    "blocks": 100,
+                    "headers": 100
+                },
+                "id": 1
+            })))
+            .mount(&mock_server)
+            .await;
+
+        let client = RpcClient::new(mock_server.uri(), 5000);
         let result = client.health_check().await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn test_runes_api_get_transaction() {
-        let client = RpcClient::new("http://localhost:8332".to_string(), 5000);
+        let mock_server = MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "jsonrpc": "2.0",
+                "result": {
+                    "txid": "test_tx",
+                    "block_height": 12345,
+                    "confirmations": 6,
+                    "timestamp": 1234567890,
+                    "transaction_type": "Transfer"
+                },
+                "id": 1
+            })))
+            .mount(&mock_server)
+            .await;
+
+        let client = RpcClient::new(mock_server.uri(), 5000);
         let api = RunesAPI::new(client);
         let tx = api.get_transaction("test_tx").await.unwrap();
         
@@ -159,6 +245,6 @@ mod tests {
         assert_eq!(tx.block_height, Some(12345));
         assert_eq!(tx.confirmations, 6);
         assert_eq!(tx.timestamp, 1234567890);
-        matches!(tx.transaction_type, TransactionType::Transfer);
+        assert!(matches!(tx.transaction_type, TransactionType::Transfer));
     }
 } 
