@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [Released]
 
 ### Added
 - Enhanced WebSocket Service
@@ -12,11 +12,6 @@ All notable changes to this project will be documented in this file.
   - Added monitoring and health check system
   - Enhanced error handling and logging
   - Improved test coverage
-
-### Pending
-- Complete RBF (Replace-By-Fee) support in MempoolMonitorService
-- Enhance performance testing suite
-- Add more edge case tests
 
 ## [0.1.10] - 2024-01-01
 
