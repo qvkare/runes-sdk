@@ -1,72 +1,25 @@
-# Dependencies
-node_modules/
+# Generated files
 target/
-
-# Build outputs
 dist/
-build/
-*.o
-*.so
-*.dylib
-*.dll
+coverage/
+node_modules/
 
-# Environment
+# IDE files
+.idea/
+.vscode/
+*.iml
+
+# Environment files
 .env
 .env.local
 .env.*.local
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-.DS_Store
-
-# Logs
-logs/
+# Log files
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Testing
-coverage/
-.nyc_output/
-
-# Rust
-Cargo.lock
-**/*.rs.bk
-
-# Cache
-.cache/
-.npm/
-.cargo/
-
-# Docker
-.docker/
-
-# Temporary files
-tmp/
-temp/
-*.tmp
-
-# Debug
-debug/
-.debug/
-
-# Redis
-dump.rdb
-*.rdb
-
-# Prometheus & Grafana data
-prometheus/data/
-grafana/data/
-
-# Local development files
-local/
-dev/
-*.local.*
-
-# Package files
-*.tgz
-*.tar.gz 
+# System files
+.DS_Store
+Thumbs.db 
