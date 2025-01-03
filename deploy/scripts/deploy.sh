@@ -26,7 +26,7 @@ if [ ! -f "$VALUES_FILE" ]; then
     exit 1
 fi
 
-# Namespace'i oluştur (yoksa)
+# Create namespace (if not exists)
 kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
 
 # Helm chart'ı güncelle

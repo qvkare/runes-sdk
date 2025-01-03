@@ -78,7 +78,7 @@ async fn test_rate_limit_single_endpoint() {
     let app = create_test_app().await;
     let tx_id = "a".repeat(64);
 
-    // İlk 5 istek başarılı olmalı
+    // First 5 requests for IP1
     for _ in 0..5 {
         let req = test::TestRequest::get()
             .uri(&format!("/api/v1/runes/transaction/{}", tx_id))
@@ -89,7 +89,7 @@ async fn test_rate_limit_single_endpoint() {
         assert!(resp.status().is_success());
     }
 
-    // 6. istek rate limit'e takılmalı
+    // 6th request for IP1 (should hit rate limit)
     let req = test::TestRequest::get()
         .uri(&format!("/api/v1/runes/transaction/{}", tx_id))
         .insert_header(("X-Real-IP", "192.168.1.1"))
@@ -138,7 +138,7 @@ async fn test_rate_limit_different_ips() {
     let app = create_test_app().await;
     let tx_id = "a".repeat(64);
 
-    // İlk IP için 5 istek
+    // First IP için 5 istek
     for _ in 0..5 {
         let req = test::TestRequest::get()
             .uri(&format!("/api/v1/runes/transaction/{}", tx_id))
@@ -149,7 +149,7 @@ async fn test_rate_limit_different_ips() {
         assert!(resp.status().is_success());
     }
 
-    // İkinci IP için 5 istek (başarılı olmalı)
+    // Second IP için 5 istek (başarılı olmalı)
     for _ in 0..5 {
         let req = test::TestRequest::get()
             .uri(&format!("/api/v1/runes/transaction/{}", tx_id))
@@ -160,7 +160,7 @@ async fn test_rate_limit_different_ips() {
         assert!(resp.status().is_success());
     }
 
-    // İlk IP için 6. istek (rate limit'e takılmalı)
+    // First IP için 6. istek (rate limit'e takılmalı)
     let req = test::TestRequest::get()
         .uri(&format!("/api/v1/runes/transaction/{}", tx_id))
         .insert_header(("X-Real-IP", "192.168.1.3"))

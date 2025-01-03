@@ -137,5 +137,5 @@ impl RuneError {
     }
 }
 
-// Result tipi için alias
+// Alias for Result type
 pub type RuneResult<T> = Result<T, RuneError>; 

@@ -1,132 +1,86 @@
+# CI Stage
 name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, develop ]
-  release:
-    types: [ published ]
+    branches: [ main ]
 
 env:
   CARGO_TERM_COLOR: always
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: qvkare/runes-sdk
 
 jobs:
-  # CI Aşaması
   ci:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-
-      # Rust toolchain kurulumu
-      - name: Install Rust
+      - uses: actions/checkout@v2
+      
+      - name: Set up Rust
         uses: actions-rs/toolchain@v1
         with:
-          profile: minimal
           toolchain: stable
-          components: rustfmt, clippy
-          override: true
-
-      # Bağımlılıkları önbellekleme
+          
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v2
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      # Kod formatını kontrol et
-      - name: Check formatting
-        run: cargo fmt -- --check
-
-      # Linting
-      - name: Run clippy
-        run: cargo clippy -- -D warnings
-
-      # Bağımlılık güvenlik taraması
-      - name: Security audit
-        run: |
-          cargo install cargo-audit
-          cargo audit
-
-      # Unit ve entegrasyon testleri
+          
       - name: Run tests
         run: cargo test --verbose
-
-      # Build kontrolü
-      - name: Check build
-        run: cargo build --release
-
-      # Docker imajı oluştur
-      - name: Build Docker image
-        run: docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
-
-  # CD Aşaması - Staging
-  cd-staging:
-    needs: ci
-    if: github.ref == 'refs/heads/develop'
-    runs-on: ubuntu-latest
-    environment: staging
-    steps:
-      - uses: actions/checkout@v3
-
-      # Docker login
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v2
+        
+      - name: Run clippy
+        run: cargo clippy -- -D warnings
+        
+      - name: Run audit
+        run: cargo audit
+        
+      - name: Login to registry
+        uses: docker/login-action@v1
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      # Docker imajını push et
-      - name: Push Docker image
-        run: |
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging
-
-      # Staging ortamına deploy et
+          
+      # Build Docker image
+      - name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          
+  # CD Stage - Staging
+  deploy-staging:
+    needs: ci
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://staging.example.com
+    steps:
+      - uses: actions/checkout@v2
+      
       - name: Deploy to staging
         run: |
-          echo "Deploying to staging environment..."
-          # Burada staging ortamına deployment komutları gelecek
-          # Örneğin: kubectl apply, helm upgrade vb.
-
-  # CD Aşaması - Production
-  cd-production:
-    needs: ci
-    if: github.event_name == 'release' && github.event.action == 'published'
+          echo "Deploying to staging..."
+          # Add deployment steps here
+          
+  # CD Stage - Production
+  deploy-production:
+    needs: deploy-staging
     runs-on: ubuntu-latest
     environment:
       name: production
-      url: https://api.runesdk.com
+      url: https://production.example.com
     steps:
-      - uses: actions/checkout@v3
-
-      # Docker login
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v2
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # Docker imajını push et
-      - name: Push Docker image
-        run: |
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.event.release.tag_name }}
-          docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.event.release.tag_name }}
-          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-
-      # Production ortamına deploy et
+      - uses: actions/checkout@v2
+      
       - name: Deploy to production
         run: |
-          echo "Deploying to production environment..."
-          # Burada production ortamına deployment komutları gelecek
-          # Örneğin: kubectl apply, helm upgrade vb. 
+          echo "Deploying to production..."
+          # Add deployment steps here 

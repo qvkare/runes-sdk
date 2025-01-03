@@ -44,7 +44,7 @@ lazy_static! {
         &["cache_type"]
     ).unwrap();
     
-    // Node bağlantı metrikleri
+    // Node connection metrics
     pub static ref NODE_REQUESTS_TOTAL: IntCounterVec = IntCounterVec::new(
         opts!("node_requests_total", "Total number of requests to node"),
         &["method"]
@@ -93,7 +93,7 @@ pub fn register_metrics() {
     REGISTRY.register(Box::new(CACHE_MISSES_TOTAL.clone())).unwrap();
     REGISTRY.register(Box::new(CACHE_SIZE.clone())).unwrap();
     
-    // Node bağlantı metrikleri
+    // Node connection metrics
     REGISTRY.register(Box::new(NODE_REQUESTS_TOTAL.clone())).unwrap();
     REGISTRY.register(Box::new(NODE_REQUEST_FAILURES_TOTAL.clone())).unwrap();
     REGISTRY.register(Box::new(NODE_REQUEST_DURATION_SECONDS.clone())).unwrap();

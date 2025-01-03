@@ -52,7 +52,7 @@ where
     }
 
     fn call(&self, mut req: ServiceRequest) -> Self::Future {
-        // Request ID'yi oluştur
+        // Generate Request ID
         let request_id = if let Some(existing_id) = req.headers().get("X-Request-ID") {
             existing_id.to_str().unwrap_or_default().to_string()
         } else {

@@ -587,62 +587,18 @@ pub fn setup_logging(config: LogConfig) {
 
 ### Tamamlanan Aşamalar ✅
 
-1. Proje Yapısı ve Migrasyon
-   - Dizin yapısı oluşturuldu
-   - Rust modülleri implementasyonu yapıldı
-   - Shared interfaces tamamlandı
+- Directory structure created
+- Rust modules implemented
+- Shared types created
+- Rust implementation completed
+- Node connection management implemented
+- Synchronization service created
+- Webhook system implemented
+- Grafana dashboards created
+- Dockerfile created
 
-2. Transaction ID based Runes Query API
-   - Shared types oluşturuldu
-   - Rust implementasyonu yapıldı
-   - API routes konfigürasyonu tamamlandı
+### Next Stage: CI/CD Pipeline ⏳
 
-3. Ord Node Integration
-   - Node bağlantı yönetimi implementasyonu yapıldı
-   - Senkronizasyon servisi oluşturuldu
-   - Mock node desteği eklendi
+- [ ] Create release notes
 
-4. CEX Integrations
-   - Webhook sistemi implementasyonu yapıldı
-   - Caching sistemi kuruldu
-   - Redis entegrasyonu tamamlandı
-
-5. Monitoring ve Metrics
-   - Prometheus entegrasyonu yapıldı
-   - Grafana dashboardları oluşturuldu
-   - Health check endpoints eklendi
-
-6. Docker ve Deployment
-   - Dockerfile oluşturuldu
-   - Docker Compose yapılandırması tamamlandı
-   - Helm chart'ları hazırlandı
-
-### Yapılacak Aşama: CI/CD Pipeline ⏳
-
-1. GitHub Actions Workflow Gereksinimleri
-   - [ ] Pull request workflow'u
-   - [ ] Main branch workflow'u
-   - [ ] Release workflow'u
-
-2. Test Otomasyonu
-   - [ ] Unit test pipeline'ı
-   - [ ] Integration test pipeline'ı
-   - [ ] E2E test pipeline'ı
-
-3. Build ve Deployment Otomasyonu
-   - [ ] Docker image build pipeline'ı
-   - [ ] Staging ortamına otomatik deployment
-   - [ ] Production ortamına manuel onaylı deployment
-
-4. Release Yönetimi
-   - [ ] Semantic versioning
-   - [ ] Changelog otomasyonu
-   - [ ] Release notes oluşturma
-
-5. Güvenlik ve Kalite
-   - [ ] Dependency scanning
-   - [ ] SAST (Static Application Security Testing)
-   - [ ] Code quality checks
-   - [ ] Coverage raporları
-
-Not: CI/CD pipeline'ı daha sonra implemente edilecektir. Şu an için manuel deployment ve test süreçleri kullanılabilir. 
+Note: CI/CD pipeline will be implemented later. Manual deployment and test processes can be used for now. 

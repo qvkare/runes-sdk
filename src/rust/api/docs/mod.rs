@@ -73,7 +73,7 @@ impl utoipa::Modify for SecurityAddon {
     }
 }
 
-// Rate limit bilgisi için header tanımları
+// Header definitions for rate limit information
 pub struct RateLimitHeaders;
 
 impl utoipa::Modify for RateLimitHeaders {

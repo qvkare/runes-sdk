@@ -41,7 +41,7 @@ mock! {
     }
 }
 
-// Test uygulaması oluşturucu
+// Test application builder
 pub async fn create_test_app(
     node: Option<MockNodeConnection>,
     cache: Option<MockRunesCache>,
@@ -100,7 +100,7 @@ pub async fn create_test_app(
     ).await
 }
 
-// Test veri oluşturucular
+// Test data generators
 pub fn create_test_transaction(tx_id: &str) -> RunesTransactionResponse {
     RunesTransactionResponse {
         transaction_id: tx_id.to_string(),
@@ -121,7 +121,7 @@ pub fn create_test_rune_transfer() -> RuneTransfer {
     }
 }
 
-// Test yardımcı fonksiyonları
+// Test helper functions
 pub async fn send_test_request<T: serde::Serialize>(
     app: &impl actix_web::dev::Service<actix_http::Request>,
     method: &str,

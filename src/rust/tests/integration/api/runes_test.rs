@@ -21,7 +21,7 @@ async fn test_get_transaction_success() {
         .times(1)
         .returning(|tx_id| Ok(create_test_transaction(tx_id)));
 
-    // Test uygulamasını oluştur
+    // Create test application
     let app = create_test_app(Some(mock_node), None, None).await;
 
     // İsteği gönder
@@ -51,7 +51,7 @@ async fn test_get_transaction_from_cache() {
         .times(1)
         .returning(|tx_id| Some(Arc::new(create_test_transaction(tx_id))));
 
-    // Test uygulamasını oluştur
+    // Create test application
     let app = create_test_app(None, Some(mock_cache), None).await;
 
     // İsteği gönder
@@ -79,7 +79,7 @@ async fn test_get_transaction_not_found() {
         .times(1)
         .returning(|_| Err(RuneError::NotFound("Transaction not found".into())));
 
-    // Test uygulamasını oluştur
+    // Create test application
     let app = create_test_app(Some(mock_node), None, None).await;
 
     // İsteği gönder
@@ -107,7 +107,7 @@ async fn test_get_batch_transactions() {
                 .collect())
         });
 
-    // Test uygulamasını oluştur
+    // Create test application
     let app = create_test_app(Some(mock_node), None, None).await;
 
     // İsteği hazırla
@@ -142,7 +142,7 @@ async fn test_get_address_transfers() {
         .times(1)
         .returning(|_| Ok(vec![create_test_rune_transfer()]));
 
-    // Test uygulamasını oluştur
+    // Create test application
     let app = create_test_app(Some(mock_node), None, None).await;
 
     // İsteği gönder

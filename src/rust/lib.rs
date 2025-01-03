@@ -172,8 +172,8 @@ impl WebSocketService {
     /// - The connection cannot be established
     /// - The maximum reconnection attempts are exceeded
     pub fn connect(&self) -> Result<(), Error> {
-        // WebSocket bağlantı implementasyonu için config kullanılacak
-        // Config değerlerini kullanarak bağlantı kurulacak
+        // Config will be used for WebSocket connection implementation
+        // Connection will be established using config values
         todo!("Implement WebSocket connection using config: url={}, reconnect_interval={:?}, max_attempts={:?}", 
             self.config.url,
             self.config.reconnect_interval,
