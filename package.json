@@ -4,6 +4,10 @@
   "description": "SDK for interacting with Runes protocol",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/qvkare/runes-sdk.git"
+  },
   "scripts": {
     "prebuild": "rimraf dist",
     "build": "tsc",
@@ -38,7 +42,7 @@
     "rimraf": "^5.0.1",
     "ts-jest": "^29.2.5",
     "typescript": "^5.7.2",
-    "undici": "^7.2.0"
+    "undici": "^5.28.2"
   },
   "dependencies": {
     "node-fetch": "^2.7.0",
