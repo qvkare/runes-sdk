@@ -32,6 +32,9 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+          
       - name: Run tests
         run: cargo test --verbose
         
