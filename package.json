@@ -1,0 +1,65 @@
+{
+  "name": "runes-sdk",
+  "version": "0.1.12",
+  "description": "SDK for interacting with Runes protocol",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/qvkare/runes-sdk.git"
+  },
+  "scripts": {
+    "prebuild": "rimraf dist",
+    "build": "npm run build:ts && npm run build:rust",
+    "build:ts": "tsc",
+    "build:rust": "cargo build --release",
+    "test": "npm run lint && npm run test:ts && npm run test:rust",
+    "test:ts": "jest",
+    "test:rust": "cargo test",
+    "test:coverage": "jest --coverage",
+    "lint": "npm run lint:ts && npm run lint:rust",
+    "lint:ts": "tsc --noEmit",
+    "lint:rust": "cargo clippy -- -D warnings",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "runes",
+    "blockchain",
+    "sdk"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.17.12",
+    "@types/node-fetch": "^2.6.12",
+    "@types/socket.io": "^3.0.2",
+    "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.5.13",
+    "@typescript-eslint/eslint-plugin": "^6.2.0",
+    "@typescript-eslint/parser": "^6.2.0",
+    "eslint": "^8.45.0",
+    "eslint-config-prettier": "^8.8.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "jest": "^29.7.0",
+    "mock-socket": "^9.3.1",
+    "prettier": "^3.0.0",
+    "rimraf": "^5.0.1",
+    "ts-jest": "^29.2.5",
+    "typescript": "^5.7.2",
+    "undici": "^5.28.2"
+  },
+  "dependencies": {
+    "node-fetch": "^2.7.0",
+    "socket.io": "^4.7.2",
+    "uuid": "^11.0.3",
+    "ws": "^8.18.0"
+  }
+}

@@ -1,0 +1,39 @@
+# Development files
+src/
+tests/
+coverage/
+.github/
+.vscode/
+.idea/
+*.tsbuildinfo
+
+# Configuration files
+.eslintrc.json
+.prettierrc
+jest.config.js
+jest.setup.js
+jest.integration.config.js
+jest.performance.config.js
+tsconfig.json
+tsconfig.test.json
+
+# Git files
+.git/
+.gitignore
+
+# Logs and Cache
+*.log
+npm-debug.log*
+.npm/
+
+# Environment variables
+.env
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Rust files
+target/
+Cargo.lock 
