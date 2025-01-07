@@ -1,75 +1,159 @@
-import { WebSocketClientService, WebSocketClientConfig } from '../websocket.client.service';
+import { WebSocketClientService } from '../websocket.client.service';
+
+// WebSocket durumları için sabitler
+const WS_STATES = {
+    CONNECTING: 0,
+    OPEN: 1,
+    CLOSING: 2,
+    CLOSED: 3
+};
 
 describe('WebSocketClientService', () => {
     let service: WebSocketClientService;
-    let mockWebSocket: any;
+    let mockWebSocket: jest.Mock;
+    let mockWebSocketInstance: any;
+    let mockConsoleError: jest.SpyInstance;
 
     beforeEach(() => {
-        mockWebSocket = {
-            onopen: jest.fn(),
-            onclose: jest.fn(),
-            onerror: jest.fn(),
+        jest.useFakeTimers();
+        
+        // Console.error'u mock'la
+        mockConsoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+        
+        // Her test için yeni bir mock instance oluştur
+        mockWebSocketInstance = {
             send: jest.fn(),
             close: jest.fn(),
-            readyState: WebSocket.OPEN
+            readyState: WS_STATES.CONNECTING,
+            onopen: null,
+            onclose: null,
+            onerror: null,
+            onmessage: null,
+            addEventListener: jest.fn((event, handler) => {
+                mockWebSocketInstance[`on${event}`] = handler;
+            }),
+            removeEventListener: jest.fn()
         };
 
-        (global as any).WebSocket = jest.fn(() => mockWebSocket);
-
-        const config: WebSocketClientConfig = {
-            url: 'ws://localhost:8080'
-        };
-        service = new WebSocketClientService(config);
+        // Mock WebSocket constructor'ı
+        mockWebSocket = jest.fn(() => mockWebSocketInstance);
+        (global as any).WebSocket = mockWebSocket;
+        
+        service = new WebSocketClientService('ws://test.com');
+        
+        // Bağlantıyı simüle et
+        mockWebSocketInstance.readyState = WS_STATES.OPEN;
+        if (mockWebSocketInstance.onopen) {
+            mockWebSocketInstance.onopen(new Event('open'));
+        }
     });
 
     afterEach(() => {
+        service.disconnect();
+        jest.clearAllTimers();
         jest.clearAllMocks();
-        jest.useRealTimers();
+        mockConsoleError.mockRestore();
     });
 
-    it('should connect successfully', () => {
-        service.connect();
-        expect(global.WebSocket).toHaveBeenCalledWith('ws://localhost:8080');
+    it('should throw error when URL is not provided', () => {
+        expect(() => new WebSocketClientService('')).toThrow('WebSocket URL is required');
     });
 
-    it('should handle connection error', () => {
-        const error = new Error('Connection failed');
-        (global as any).WebSocket = jest.fn(() => { throw error; });
-        
-        const consoleSpy = jest.spyOn(console, 'error');
-        service.connect();
-        
-        expect(consoleSpy).toHaveBeenCalledWith('WebSocket connection error:', error);
+    it('should throw error when message is not provided', () => {
+        expect(() => service.send(null)).toThrow('Message is required');
     });
 
-    it('should send message when connected', () => {
-        service.connect();
-        service.send({ type: 'test' });
+    it('should send message when connected', async () => {
+        const testMessage = { type: 'test' };
+        service.send(testMessage);
         
-        expect(mockWebSocket.send).toHaveBeenCalledWith(JSON.stringify({ type: 'test' }));
+        expect(mockWebSocketInstance.readyState).toBe(WS_STATES.OPEN);
+        expect(mockWebSocketInstance.send).toHaveBeenCalledWith(JSON.stringify(testMessage));
     });
 
-    it('should handle reconnection on close', () => {
-        jest.useFakeTimers();
-        service.connect();
+    it('should queue messages when not connected and send them after connection', async () => {
+        // Bağlantıyı kapat
+        mockWebSocketInstance.readyState = WS_STATES.CLOSED;
+        if (mockWebSocketInstance.onclose) {
+            mockWebSocketInstance.onclose(new Event('close'));
+        }
         
-        // İlk bağlantı
-        expect(global.WebSocket).toHaveBeenCalledTimes(1);
+        const testMessage = { type: 'test' };
+        service.send(testMessage);
         
-        // Bağlantı kapandığında
-        mockWebSocket.onclose();
+        // Mesajın hemen gönderilmemesi gerekiyor
+        expect(mockWebSocketInstance.send).not.toHaveBeenCalled();
         
-        // Zamanlayıcıyı ilerlet
-        jest.advanceTimersByTime(5000);
+        // Yeni bağlantı oluştur
+        mockWebSocketInstance.readyState = WS_STATES.OPEN;
+        if (mockWebSocketInstance.onopen) {
+            mockWebSocketInstance.onopen(new Event('open'));
+        }
         
-        // Yeniden bağlanma denemesi
-        expect(global.WebSocket).toHaveBeenCalledTimes(2);
+        // Jest zamanlayıcılarını ilerlet
+        jest.runAllTimers();
+        
+        // Mesajın gönderilmiş olması gerekiyor
+        expect(mockWebSocketInstance.send).toHaveBeenCalledWith(JSON.stringify(testMessage));
     });
 
-    it('should close connection', () => {
-        service.connect();
-        service.close();
+    it('should handle reconnection with exponential backoff', () => {
+        // İlk bağlantıyı kapat
+        mockWebSocketInstance.readyState = WS_STATES.CLOSED;
+        if (mockWebSocketInstance.onclose) {
+            mockWebSocketInstance.onclose(new Event('close'));
+        }
         
-        expect(mockWebSocket.close).toHaveBeenCalled();
+        // İlk yeniden bağlanma denemesi (1 saniye sonra)
+        jest.advanceTimersByTime(1000);
+        expect(mockWebSocket).toHaveBeenCalledTimes(2);
+        
+        // İkinci yeniden bağlanma denemesi (2 saniye sonra)
+        mockWebSocketInstance.readyState = WS_STATES.CLOSED;
+        if (mockWebSocketInstance.onclose) {
+            mockWebSocketInstance.onclose(new Event('close'));
+        }
+        jest.advanceTimersByTime(2000);
+        expect(mockWebSocket).toHaveBeenCalledTimes(3);
+        
+        // Üçüncü yeniden bağlanma denemesi (4 saniye sonra)
+        mockWebSocketInstance.readyState = WS_STATES.CLOSED;
+        if (mockWebSocketInstance.onclose) {
+            mockWebSocketInstance.onclose(new Event('close'));
+        }
+        jest.advanceTimersByTime(4000);
+        expect(mockWebSocket).toHaveBeenCalledTimes(4);
+    });
+
+    it('should handle WebSocket errors', () => {
+        const error = new Error('WebSocket error');
+        if (mockWebSocketInstance.onerror) {
+            mockWebSocketInstance.onerror(new Event('error'));
+        }
+        
+        expect(mockConsoleError).toHaveBeenCalledWith('WebSocket error:', expect.any(Event));
+        
+        // Hata sonrası yeniden bağlanma denemesi
+        jest.advanceTimersByTime(1000);
+        expect(mockWebSocket).toHaveBeenCalledTimes(2);
+    });
+
+    it('should handle message parsing errors', () => {
+        const invalidMessage = 'invalid json';
+        if (mockWebSocketInstance.onmessage) {
+            mockWebSocketInstance.onmessage({ data: invalidMessage });
+        }
+        
+        expect(mockConsoleError).toHaveBeenCalledWith(
+            'Error parsing message:',
+            expect.any(SyntaxError)
+        );
+    });
+
+    it('should return correct WebSocket state', () => {
+        expect(service.getState()).toBe(WS_STATES.OPEN);
+        
+        service.disconnect();
+        expect(service.getState()).toBe(WS_STATES.CLOSED);
     });
 }); 
