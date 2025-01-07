@@ -3,36 +3,85 @@ target/
 dist/
 coverage/
 node_modules/
+lib/
+build/
 
 # IDE files
 .idea/
 .vscode/
 *.iml
+*.code-workspace
+.settings/
+.project
+.classpath
 
 # Environment files
 .env
 .env.local
 .env.*.local
+.env.development
+.env.test
+.env.production
 
 # Log files
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
 
 # System files
 .DS_Store
 Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
 
 # Build artifacts
 *.tsbuildinfo
 .tscache/
+.rollup.cache/
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+.vuepress/dist
 
 # Test artifacts
 .nyc_output/
 junit.xml
+*.lcov
+.jest-*
 
 # Temporary files
 *.swp
 *.swo
-*~ 
+*~
+*.bak
+*.tmp
+.temp/
+.tmp/
+
+# Rust specific
+debug/
+**/*.rs.bk
+*.pdb
+
+# Dependencies
+.pnp/
+.pnp.js
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# Misc
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pid
+*.seed
+*.pid.lock 
