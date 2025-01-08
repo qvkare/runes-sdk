@@ -1,39 +1,115 @@
-# Development files
-src/
+# Test files
 tests/
 coverage/
+__tests__/
+*.test.*
+*.spec.*
+
+# Development configuration
 .github/
 .vscode/
 .idea/
+.settings/
+.project
+.classpath
+*.code-workspace
+
+# Build artifacts
 *.tsbuildinfo
+.tscache/
+.rollup.cache/
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+.vuepress/dist
 
 # Configuration files
-.eslintrc.json
-.prettierrc
+.eslintrc*
+.prettierrc*
+.editorconfig
 jest.config.js
 jest.setup.js
 jest.integration.config.js
 jest.performance.config.js
 tsconfig.json
-tsconfig.test.json
+tsconfig.*.json
+.travis.yml
+.circleci/
+.gitlab-ci.yml
 
 # Git files
 .git/
 .gitignore
+.gitattributes
 
 # Logs and Cache
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
 .npm/
 
 # Environment variables
 .env
 .env.*
+*.env
 
 # OS files
 .DS_Store
 Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
 
 # Rust files
 target/
-Cargo.lock 
+Cargo.lock
+**/*.rs.bk
+*.pdb
+debug/
+
+# Temporary files
+*.swp
+*.swo
+*~
+*.bak
+*.tmp
+.temp/
+.tmp/
+
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# Build output
+dist/
+lib/
+build/
+*.tgz
+
+# Misc
+*.pid
+*.seed
+*.pid.lock
+.nyc_output/
+junit.xml
+*.lcov
+.jest-*
+
+# Keep only necessary files
+!src/
+!docs/
+!examples/
+!package.json
+!README.md
+!LICENSE
+!CHANGELOG.md 
